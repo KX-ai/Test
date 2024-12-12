@@ -1,7 +1,0 @@
-streamlit
-fitz
-PyMuPDF
-transformers
-torch
-
-
