@@ -32,15 +32,16 @@ if uploaded_file:
 
         # User query for the chatbot
         query = st.text_input("Ask a question:")
-        if query:
-            # Load model (cached using @st.cache_resource)
-            model = load_model()
-            prompt = f"Document context: {document_text}\nUser question: {query}\nAnswer:"
-            try:
-                # Generate response using the model
-                response = model(prompt, max_length=150, do_sample=True, temperature=0.7)
-                st.write("Response:", response[0]['generated_text'])
-            except Exception as e:
-                st.error(f"Error generating response: {e}")
+       if query:
+    # Load model (cached using @st.cache_resource)
+    model = load_model()
+    prompt = f"Document context: {document_text}\nUser question: {query}\nAnswer:"
+    try:
+        # Generate response using the model
+        response = model(prompt, max_new_tokens=100, do_sample=True, temperature=0.7)
+        st.write("Response:", response[0]['generated_text'])
+    except Exception as e:
+        st.error(f"Error generating response: {e}")
+
     else:
         st.error("Failed to extract text. Please upload a valid document.")
