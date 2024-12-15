@@ -1,6 +1,7 @@
 import streamlit as st
 from transformers import pipeline  # For GPT-NeoX integration (example with Hugging Face)
 from PyPDF2 import PdfReader  # For PDF text extraction
+import torch  # Import torch to check for CUDA availability
 
 # Initialize the app
 st.title("Interactive Chatbot with Document Content")
