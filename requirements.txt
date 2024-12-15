@@ -1,0 +1,6 @@
+streamlit
+transformers
+torch==2.5.1
+PyPDF2
+python-docx
+pdfplumber
