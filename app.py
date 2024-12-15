@@ -32,7 +32,7 @@ if uploaded_file:
 
         # User query for the chatbot
         query = st.text_input("Ask a question:")
-       if query:
+            if query:
     # Load model (cached using @st.cache_resource)
     model = load_model()
     prompt = f"Document context: {document_text}\nUser question: {query}\nAnswer:"
