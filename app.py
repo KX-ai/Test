@@ -1,7 +1,7 @@
 import streamlit as st
-from transformers import pipeline  # For Hugging Face Transformers pipeline
-from PyPDF2 import PdfReader  # For PDF text extraction
-import torch  # To check CUDA availability
+from transformers import pipeline  # Hugging Face pipeline
+from PyPDF2 import PdfReader  # PDF text extraction
+import torch
 
 # Initialize the app
 st.title("Interactive Chatbot with Document Content")
@@ -9,7 +9,7 @@ st.title("Interactive Chatbot with Document Content")
 # Upload file
 uploaded_file = st.file_uploader("Upload a PDF or document", type=["pdf", "docx", "txt"])
 
-# Function to extract text from uploaded file
+# Function to extract text from the uploaded file
 def extract_text(file):
     if file.name.endswith(".pdf"):
         reader = PdfReader(file)
@@ -20,7 +20,7 @@ def extract_text(file):
 # Load the GPT-Neo 1.3B model
 @st.cache_resource
 def load_model():
-    # Use GPT-Neo 1.3B, which is smaller and better suited for lower-VRAM GPUs
+    # Use a lightweight GPT-Neo model
     return pipeline("text-generation", model="EleutherAI/gpt-neo-1.3B", device=0 if torch.cuda.is_available() else -1)
 
 # Process file and queries
@@ -33,7 +33,7 @@ if uploaded_file:
         # User query for the chatbot
         query = st.text_input("Ask a question:")
         if query:
-            # Load model once (cached using @st.cache_resource)
+            # Load model (cached using @st.cache_resource)
             model = load_model()
             prompt = f"Document context: {document_text}\nUser question: {query}\nAnswer:"
             try:
