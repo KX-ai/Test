@@ -1,7 +1,7 @@
 import streamlit as st
-from transformers import pipeline  # For GPT-NeoX integration (example with Hugging Face)
+from transformers import pipeline  # For Hugging Face Transformers pipeline
 from PyPDF2 import PdfReader  # For PDF text extraction
-import torch  # Import torch to check for CUDA availability
+import torch  # To check CUDA availability
 
 # Initialize the app
 st.title("Interactive Chatbot with Document Content")
@@ -17,10 +17,11 @@ def extract_text(file):
     # Add handling for other formats (e.g., .docx, .txt) here
     return None
 
-# Load the GPT-NeoX model (using the Hugging Face Transformers pipeline)
+# Load the GPT-Neo 1.3B model
+@st.cache_resource
 def load_model():
-    # Try loading with CUDA if available, else fall back to CPU
-    return pipeline("text-generation", model="EleutherAI/gpt-neox-20b", device=0 if torch.cuda.is_available() else -1)
+    # Use GPT-Neo 1.3B, which is smaller and better suited for lower-VRAM GPUs
+    return pipeline("text-generation", model="EleutherAI/gpt-neo-1.3B", device=0 if torch.cuda.is_available() else -1)
 
 # Process file and queries
 if uploaded_file:
@@ -32,7 +33,7 @@ if uploaded_file:
         # User query for the chatbot
         query = st.text_input("Ask a question:")
         if query:
-            # Load model every time a query is asked to avoid caching issues
+            # Load model once (cached using @st.cache_resource)
             model = load_model()
             prompt = f"Document context: {document_text}\nUser question: {query}\nAnswer:"
             try:
