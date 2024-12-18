@@ -3,19 +3,15 @@ import openai
 import fitz  # PyMuPDF
 
 # Set OpenAI API key
-openai.api_key = "47d1a9054d674edb96b4db6ea1c47ff2"  # Replace with your actual key
+openai.api_key = "47d1a9054d674edb96b4db6ea1c47ff2"
 
-# Create a function to extract text from PDF
+# Function to extract text from PDF
 def extract_text_from_pdf(pdf_file):
-    try:
-        # Open the uploaded file as a stream
-        with fitz.open(stream=pdf_file.read(), filetype="pdf") as doc:
-            text = ""
-            for page in doc:
-                text += page.get_text()
-        return text
-    except Exception as e:
-        raise RuntimeError(f"Failed to extract text from PDF: {e}")
+    doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    return text
 
 # Streamlit UI components
 st.title("Chatbot with PDF Content")
@@ -25,46 +21,33 @@ st.write("Upload a PDF file and interact with its content.")
 pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 
 if pdf_file is not None:
-    try:
-        # Extract text from the PDF
-        text_content = extract_text_from_pdf(pdf_file)
-        st.write("PDF content extracted successfully.")
-        
-        # Store content for LLM interaction
-        chat_history = []
+    # Extract text from the PDF
+    text_content = extract_text_from_pdf(pdf_file)
+    st.write("PDF content extracted successfully.")
 
-        # Chat functionality
-        user_input = st.text_input("Ask a question about the document:")
+    # Chat functionality
+    user_input = st.text_input("Ask a question about the document:")
 
-        if user_input:
-            # Add user input to chat history
-            chat_history.append(f"User: {user_input}")
+    if user_input:
+        # Create a prompt for GPT-3.5 Turbo
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant that answers questions based on the provided document content."},
+            {"role": "user", "content": f"Document content: {text_content[:2000]}"},
+            {"role": "user", "content": user_input}
+        ]
 
-            # Create messages for GPT-3.5 model
-            messages = [
-                {"role": "system", "content": "You are a helpful assistant for answering questions based on a document."},
-                {"role": "user", "content": f"Document content: {text_content[:1000]}..."},
-                {"role": "user", "content": user_input},
-            ]
-            
-            # Send the messages to GPT-3.5 Turbo
-            try:
-                response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
-                    messages=messages,
-                    max_tokens=150,
-                    temperature=0.7
-                )
-                # Get and display the model's response
-                answer = response["choices"][0]["message"]["content"].strip()
-                st.write(f"GPT-3.5: {answer}")
+        try:
+            # Send the conversation to GPT-3.5 Turbo
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                max_tokens=200,
+                temperature=0.7
+            )
 
-                # Add model response to chat history
-                chat_history.append(f"GPT-3.5: {answer}")
-            except Exception as e:
-                st.error(f"Failed to generate a response from GPT-3.5: {e}")
+            # Display the response
+            answer = response["choices"][0]["message"]["content"].strip()
+            st.write(f"GPT-3.5: {answer}")
 
-    except RuntimeError as e:
-        st.error(e)
-else:
-    st.info("Please upload a PDF file.")
+        except Exception as e:
+            st.error(f"Error generating response: {e}")
