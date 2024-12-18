@@ -1,4 +1,4 @@
-openai==0.27.0
-streamlit==1.17.0
-PyMuPDF==1.21.2
+openai
+streamlit
+PyMuPDF
 
