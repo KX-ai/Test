@@ -1,20 +1,22 @@
 import streamlit as st
 import openai
 import fitz  # PyMuPDF for PDF extraction
-import io  # for handling BytesIO
 
 # Set OpenAI API key
-openai.api_key = "73774827-17f1-49dc-bdc1-72362a5079a8"  # Replace with your actual API key
+openai.api_key = "your-api-key-here"  # Replace with your actual API key
 
 # Function to extract text from PDF
 def extract_text_from_pdf(pdf_file):
-    # Open the PDF file from BytesIO object
-    pdf_file_bytes = io.BytesIO(pdf_file.read())
-    doc = fitz.open(pdf_file_bytes)
-    text = ""
-    for page in doc:
-        text += page.get_text()
-    return text
+    try:
+        # Open the PDF file with PyMuPDF
+        with fitz.open("pdf", pdf_file.read()) as doc:
+            text = ""
+            for page in doc:
+                text += page.get_text()
+            return text
+    except Exception as e:
+        st.error(f"Error processing PDF: {e}")
+        return None
 
 # Streamlit UI
 st.title("Chatbot with PDF Content")
@@ -25,14 +27,11 @@ pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 
 if pdf_file is not None:
     # Extract text from the uploaded PDF
-    try:
-        text_content = extract_text_from_pdf(pdf_file)
-        st.write("PDF content extracted successfully.")
-    except Exception as e:
-        st.error(f"Error processing PDF: {e}")
-        text_content = ""
-
+    text_content = extract_text_from_pdf(pdf_file)
+    
     if text_content:
+        st.write("PDF content extracted successfully.")
+        
         # Store content for LLM interaction
         chat_history = []
 
@@ -46,20 +45,19 @@ if pdf_file is not None:
             # Create prompt for Qwen 2.5 Instruct model using the extracted text (limit size)
             prompt = f"Document content: {text_content[:1000]}...\n\nUser question: {user_input}\nAnswer:"
             
-            try:
-                # Call the model to generate a response
-                response = openai.ChatCompletion.create(
-                    model="Qwen-2.5-72B-Instruct",  # Replace with the actual model name if different
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=150,
-                    temperature=0.7
-                )
+            # Call the model to generate a response
+            response = openai.Completion.create(
+                model="Qwen-2.5-72B-Instruct",  # Replace with the actual model name
+                prompt=prompt,
+                max_tokens=150,
+                n=1,
+                stop=None,
+                temperature=0.7
+            )
 
-                # Get and display the response from the model
-                answer = response.choices[0].message['content'].strip()
-                st.write(f"Qwen 2.5: {answer}")
+            # Get and display the response from the model
+            answer = response.choices[0].text.strip()
+            st.write(f"Qwen 2.5: {answer}")
 
-                # Add model response to chat history
-                chat_history.append(f"Qwen 2.5: {answer}")
-            except Exception as e:
-                st.error(f"Error getting response from model: {e}")
+            # Add model response to chat history
+            chat_history.append(f"Qwen 2.5: {answer}")
