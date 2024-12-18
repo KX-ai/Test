@@ -12,15 +12,10 @@ class SambanovaClient:
         openai.api_base = self.base_url  # Set the base URL for the OpenAI API
 
     def chat(self, model, messages, temperature=0.7, top_p=1.0):
-        # For older versions of the openai package, use Completion instead of ChatCompletion
-        prompt = ""
-        for message in messages:
-            prompt += f"{message['role']}: {message['content']}\n"
-        
         try:
-            response = openai.Completion.create(
+            response = openai.ChatCompletion.create(
                 model=model,
-                prompt=prompt,
+                messages=messages,
                 temperature=temperature,
                 max_tokens=150,  # Adjust max tokens if needed
                 top_p=top_p
@@ -70,7 +65,11 @@ if pdf_file is not None:
             chat_history.append({"role": "user", "content": user_input})
 
             # Create prompt for Qwen 2.5 Instruct model using the extracted text (limit size)
-            prompt = f"Document content: {text_content[:1000]}...\n\nUser question: {user_input}\nAnswer:"
+            # We limit the text size for better performance with token limits
+            prompt_text = f"Document content (truncated): {text_content[:1000]}...\n\nUser question: {user_input}\nAnswer:"
+
+            # Add prompt text to the chat history
+            chat_history.append({"role": "system", "content": prompt_text})
 
             try:
                 # Call the Qwen2.5-72B-Instruct model to generate a response
@@ -82,7 +81,7 @@ if pdf_file is not None:
                 )
 
                 # Get and display the response from the model
-                answer = response['choices'][0]['text'].strip()  # Ensure correct key for text output
+                answer = response['choices'][0]['message']['content'].strip()  # Correct access to response
                 st.write(f"Qwen 2.5: {answer}")
 
                 # Add model response to chat history
