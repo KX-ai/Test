@@ -1,7 +1,8 @@
-streamlit==1.17.0
-openai==1.0.0
+streamlit==1.19.0
+openai==0.27.0
 PyPDF2==2.11.2
 altair==4.2.0
+
 
 
 
