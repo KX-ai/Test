@@ -12,11 +12,17 @@ class SambanovaClient:
         openai.api_base = self.base_url  # Set the base URL for the OpenAI API
 
     def chat(self, model, messages, temperature=0.7, top_p=1.0):
+        # For older versions of the openai package, use Completion instead of ChatCompletion
+        prompt = ""
+        for message in messages:
+            prompt += f"{message['role']}: {message['content']}\n"
+        
         try:
-            response = openai.ChatCompletion.create(
+            response = openai.Completion.create(
                 model=model,
-                messages=messages,
+                prompt=prompt,
                 temperature=temperature,
+                max_tokens=150,  # Adjust max tokens if needed
                 top_p=top_p
             )
             return response
@@ -76,7 +82,7 @@ if pdf_file is not None:
                 )
 
                 # Get and display the response from the model
-                answer = response['choices'][0]['message']['content'].strip()  # Ensure correct key
+                answer = response['choices'][0]['text'].strip()  # Ensure correct key for text output
                 st.write(f"Qwen 2.5: {answer}")
 
                 # Add model response to chat history
