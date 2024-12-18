@@ -1,3 +1,4 @@
+import os
 import openai
 import PyPDF2
 import streamlit as st
@@ -7,18 +8,20 @@ class SambanovaClient:
     def __init__(self, api_key, base_url):
         self.api_key = api_key
         self.base_url = base_url
-        self.client = openai.OpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url
-        )
+        openai.api_key = self.api_key  # Set the API key for the OpenAI client
+        openai.api_base = self.base_url  # Set the base URL for the OpenAI API
 
     def chat(self, model, messages, temperature=0.7, top_p=1.0):
-        return self.client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            top_p=top_p
-        )
+        try:
+            response = openai.ChatCompletion.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                top_p=top_p
+            )
+            return response
+        except Exception as e:
+            raise Exception(f"Error while calling OpenAI API: {str(e)}")
 
 # Function to extract text from PDF using PyPDF2
 def extract_text_from_pdf(pdf_file):
