@@ -42,36 +42,43 @@ if pdf_file is not None:
     st.write("PDF content extracted successfully.")
 
     # Initialize the Sambanova client with the API key
-    api_key = os.environ.get("3a9006f7-a010-48b8-a17c-201155979015")  # Make sure to set your API key
-    sambanova_client = SambanovaClient(
-        api_key=api_key,
-        base_url="https://api.sambanova.ai/v1"
-    )
-
-    # Store content for LLM interaction
-    chat_history = [{"role": "system", "content": "You are a helpful assistant"}]
-
-    # Chat functionality
-    user_input = st.text_input("Ask a question about the document:")
-
-    if user_input:
-        # Add user input to chat history
-        chat_history.append({"role": "user", "content": user_input})
-
-        # Create prompt for Qwen 2.5 Instruct model using the extracted text (limit size)
-        prompt = f"Document content: {text_content[:1000]}...\n\nUser question: {user_input}\nAnswer:"
-
-        # Call the Qwen2.5-72B-Instruct model to generate a response
-        response = sambanova_client.chat(
-            model="Qwen2.5-72B-Instruct",  # Model name
-            messages=chat_history,
-            temperature=0.1,
-            top_p=0.1
+    api_key = os.environ.get("3a9006f7-a010-48b8-a17c-201155979015")  # Correct environment variable
+    if api_key is None:
+        st.error("API key not found! Please set the 'SAMBANOVA_API_KEY' environment variable.")
+    else:
+        sambanova_client = SambanovaClient(
+            api_key=api_key,
+            base_url="https://api.sambanova.ai/v1"
         )
 
-        # Get and display the response from the model
-        answer = response.choices[0].message['content'].strip()
-        st.write(f"Qwen 2.5: {answer}")
+        # Store content for LLM interaction
+        chat_history = [{"role": "system", "content": "You are a helpful assistant"}]
 
-        # Add model response to chat history
-        chat_history.append({"role": "assistant", "content": answer})
+        # Chat functionality
+        user_input = st.text_input("Ask a question about the document:")
+
+        if user_input:
+            # Add user input to chat history
+            chat_history.append({"role": "user", "content": user_input})
+
+            # Create prompt for Qwen 2.5 Instruct model using the extracted text (limit size)
+            prompt = f"Document content: {text_content[:1000]}...\n\nUser question: {user_input}\nAnswer:"
+
+            try:
+                # Call the Qwen2.5-72B-Instruct model to generate a response
+                response = sambanova_client.chat(
+                    model="Qwen2.5-72B-Instruct",  # Model name
+                    messages=chat_history,
+                    temperature=0.1,
+                    top_p=0.1
+                )
+
+                # Get and display the response from the model
+                answer = response['choices'][0]['message']['content'].strip()  # Ensure correct key
+                st.write(f"Qwen 2.5: {answer}")
+
+                # Add model response to chat history
+                chat_history.append({"role": "assistant", "content": answer})
+
+            except Exception as e:
+                st.error(f"Error occurred while fetching response: {str(e)}")
