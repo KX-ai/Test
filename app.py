@@ -40,21 +40,23 @@ if pdf_file is not None:
             # Add user input to chat history
             chat_history.append(f"User: {user_input}")
 
-            # Create prompt for GPT-3.5 model using the PDF content
-            prompt = f"Document content: {text_content[:1000]}...\n\nUser question: {user_input}\nAnswer:"
+            # Create messages for GPT-3.5 model
+            messages = [
+                {"role": "system", "content": "You are a helpful assistant for answering questions based on a document."},
+                {"role": "user", "content": f"Document content: {text_content[:1000]}..."},
+                {"role": "user", "content": user_input},
+            ]
             
-            # Send the prompt to GPT-3.5
+            # Send the messages to GPT-3.5 Turbo
             try:
-                response = openai.Completion.create(
+                response = openai.ChatCompletion.create(
                     model="gpt-3.5-turbo",
-                    prompt=prompt,
+                    messages=messages,
                     max_tokens=150,
-                    n=1,
-                    stop=None,
                     temperature=0.7
                 )
                 # Get and display the model's response
-                answer = response.choices[0].text.strip()
+                answer = response["choices"][0]["message"]["content"].strip()
                 st.write(f"GPT-3.5: {answer}")
 
                 # Add model response to chat history
