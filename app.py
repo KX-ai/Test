@@ -1,4 +1,3 @@
-import os
 import openai
 import PyPDF2
 import streamlit as st
@@ -41,10 +40,10 @@ if pdf_file is not None:
     text_content = extract_text_from_pdf(pdf_file)
     st.write("PDF content extracted successfully.")
 
-    # Initialize the Sambanova client with the API key
-    api_key = os.environ.get("3a9006f7-a010-48b8-a17c-201155979015")  # Correct environment variable
-    if api_key is None:
-        st.error("API key not found! Please set the 'SAMBANOVA_API_KEY' environment variable.")
+    # Retrieve the API key securely from Streamlit Secrets
+    api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
+    if not api_key:
+        st.error("API key not found! Please check your secrets settings.")
     else:
         sambanova_client = SambanovaClient(
             api_key=api_key,
