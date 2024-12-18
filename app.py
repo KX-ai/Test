@@ -3,7 +3,7 @@ import openai
 import fitz  # PyMuPDF
 
 # Set OpenAI API key
-openai.api_key = "47d1a9054d674edb96b4db6ea1c47ff2"
+openai.api_key = "96fbc73d8ea14f34ac9e179dc881c100"
 
 # Function to extract text from PDF
 def extract_text_from_pdf(pdf_file):
