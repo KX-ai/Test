@@ -77,7 +77,7 @@ if pdf_file is not None:
         user_input = st.text_input(
             "Your message:", 
             key="user_input", 
-            placeholder="Type your message here and press Enter or click Send..."
+            placeholder="Type your message here and press Enter"
         )
 
         # Check if Enter was pressed by checking for a change in user_input
