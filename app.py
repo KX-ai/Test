@@ -154,9 +154,10 @@ deepseek_api_key = st.secrets["general"]["DEEPSEEK_API_KEY"]
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "DeepSeek LLM Chat (67B)"])
 
-# Use a text input field to capture input and process on Enter key press
+# Flag to check if user has entered input before generating responses
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
+# If model changes, prompt user to enter input again
 if user_input:
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
