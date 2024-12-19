@@ -82,7 +82,7 @@ if pdf_file is not None:
         send_button = st.button("Send")
 
         # Check if user pressed Enter or clicked Send
-        if send_button or user_input:
+        if send_button and user_input:
             # Add user input to chat history
             st.session_state.chat_history.append({"role": "user", "content": user_input})
 
