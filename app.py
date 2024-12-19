@@ -4,7 +4,7 @@ import requests
 import streamlit as st
 import json
 import time  # Import time for rate-limiting retries
-import PyMuPDF  # Import PyMuPDF for better PDF extraction
+import fitz  # PyMuPDF (corrected import)
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
