@@ -3,7 +3,7 @@ import openai
 import requests
 import streamlit as st
 import json
-import time  # Import time for rate-limiting retries
+import time
 import fitz  # PyMuPDF (corrected import)
 import tempfile
 
@@ -78,17 +78,16 @@ class DeepSeekClient:
 # Function to extract text from PDF using PyMuPDF (corrected import)
 @st.cache_data
 def extract_text_from_pdf(pdf_file):
-    # Save the uploaded PDF file to a temporary location
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        temp_file.write(pdf_file.read())  # Save the content to a temporary file
+        temp_file.write(pdf_file.read())  
         temp_file_path = temp_file.name
 
-    doc = fitz.open(temp_file_path)  # Open the PDF file using fitz from PyMuPDF
+    doc = fitz.open(temp_file_path)
     text = ""
-    for page_num in range(len(doc)):  # Iterate over pages
-        page = doc.load_page(page_num)  # Load each page
-        text += page.get_text()  # Extract text from each page
-    os.remove(temp_file_path)  # Clean up the temporary file
+    for page_num in range(len(doc)):  
+        page = doc.load_page(page_num)  
+        text += page.get_text()  
+    os.remove(temp_file_path)  
     return text
 
 # Function to truncate text for token limit
@@ -138,19 +137,25 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = load_chat_history()
     st.session_state.current_chat = [{"role": "assistant", "content": "Hello! I am Botify, your assistant. How can I assist you today?"}]
 
+# Display the hello message at the start
+if not st.session_state.chat_history:
+    st.session_state.chat_history.append(st.session_state.current_chat)
+
 # Button to start a new chat
 if st.button("Start New Chat"):
     st.session_state.current_chat = [{"role": "assistant", "content": "Hello! Starting a new conversation. How can I assist you today?"}]
     st.session_state.chat_history.append(st.session_state.current_chat)
+    save_chat_history(st.session_state.chat_history)
     st.success("New chat started!")
 
-# Button to delete a conversation
-if st.button("Delete Conversation"):
-    if len(st.session_state.chat_history) > 0:
-        st.session_state.chat_history.pop()
-        st.success("Last conversation deleted!")
+# Button to delete a specific conversation
+def delete_conversation(idx):
+    if len(st.session_state.chat_history) > idx:
+        st.session_state.chat_history.pop(idx)
+        save_chat_history(st.session_state.chat_history)
+        st.experimental_rerun()
 
-# Display chat history
+# Display chat history with delete button for each conversation
 st.write("### Chat History")
 for idx, conversation in enumerate(st.session_state.chat_history):
     st.write(f"**Conversation {idx + 1}:**")
@@ -159,7 +164,9 @@ for idx, conversation in enumerate(st.session_state.chat_history):
             st.markdown(f"*\U0001F9D1 User:* {msg['content']}")
         elif msg["role"] == "assistant":
             st.markdown(f"*\U0001F916 Botify:* {msg['content']}")
-    st.write("\n")
+    delete_button = st.button(f"Delete Conversation {idx + 1}", key=f"delete_{idx}")
+    if delete_button:
+        delete_conversation(idx)
 
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
