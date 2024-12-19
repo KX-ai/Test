@@ -1,21 +1,41 @@
-import os
 import openai
 import requests
-import PyPDF2
-import streamlit as st
 import json
+import streamlit as st
+import PyPDF2
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
 
-# Maximum context length for Gemma-2-9B-IT
+# Maximum context length
 MAX_CONTEXT_LENGTH = 8192
 
-# Use the Groq API for Gemma-2-9B-IT
+# Sambanova Client (Qwen Model)
+class SambanovaClient:
+    def __init__(self, api_key, base_url):
+        self.api_key = api_key
+        self.base_url = base_url
+        openai.api_key = self.api_key
+        openai.api_base = self.base_url
+
+    def chat(self, model, messages, temperature=0.7, top_p=1.0, max_tokens=500):
+        try:
+            response = openai.ChatCompletion.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                top_p=top_p
+            )
+            return response
+        except Exception as e:
+            raise Exception(f"Error while calling Sambanova API: {str(e)}")
+
+# Groq API Client (Gemma Model)
 class GroqClient:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.url = "https://api.groq.com/v1/chat/completions"  # Example Groq endpoint, change as necessary
+        self.url = "https://api.groq.com/v1/chat/completions"  # Replace with correct URL if necessary
 
     def chat(self, model, messages):
         payload = {
@@ -45,7 +65,7 @@ def extract_text_from_pdf(pdf_file):
         text += page.extract_text()
     return text
 
-# Function to load chat history from a JSON file
+# Load chat history
 def load_chat_history():
     if os.path.exists(CHAT_HISTORY_FILE):
         with open(CHAT_HISTORY_FILE, "r") as file:
@@ -53,12 +73,12 @@ def load_chat_history():
     else:
         return []
 
-# Function to save chat history to a JSON file
+# Save chat history
 def save_chat_history(history):
     with open(CHAT_HISTORY_FILE, "w") as file:
         json.dump(history, file, indent=4)
 
-# Function to truncate text if it's too long
+# Truncate long texts
 def truncate_text(text, max_length=MAX_CONTEXT_LENGTH):
     return text[:max_length]
 
@@ -88,20 +108,18 @@ for msg in st.session_state.current_chat:
             st.markdown(f"**\U0001F9D1 User:** {msg['content']}")
         elif msg["role"] == "assistant":
             st.markdown(f"**\U0001F916 Botify:** {msg['content']}")
-    else:
-        st.error("Error: A message is missing or malformed in the chat history.")
 
 # API keys
-groq_api_key = st.secrets["general"]["GROQ_API_KEY"]  # Assuming you are storing the API key in secrets
+sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
+groq_api_key = st.secrets["general"]["GROQ_API_KEY"]
 
 # Model selection
-model_choice = st.selectbox("Select the LLM model:", ["Groq (Gemma-2-9B-IT)"])
+model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Groq (Gemma-2-9B-IT)"])
 
-# Input message (via Enter key)
+# Input message
 user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
 if user_input:
-    # Ensure the message isn't repeated before appending
     if user_input != st.session_state.current_chat[-1]["content"]:
         st.session_state.current_chat.append({"role": "user", "content": user_input})
 
@@ -115,9 +133,21 @@ if user_input:
     st.session_state.current_chat.append({"role": "system", "content": prompt_text})
 
     try:
-        if model_choice == "Groq (Gemma-2-9B-IT)":
+        if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
+            response = SambanovaClient(
+                api_key=sambanova_api_key,
+                base_url="https://api.sambanova.ai/v1"
+            ).chat(
+                model="Qwen2.5-72B-Instruct",
+                messages=st.session_state.current_chat,
+                temperature=0.1,
+                top_p=0.1,
+                max_tokens=300
+            )
+            answer = response['choices'][0]['message']['content'].strip()
+        elif model_choice == "Groq (Gemma-2-9B-IT)":
             response = GroqClient(api_key=groq_api_key).chat(
-                model="gemma-2-9b-it",  # Model name for Groq API, change if needed
+                model="gemma-2-9b-it",  # Specify the correct model name if different
                 messages=st.session_state.current_chat
             )
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
@@ -140,8 +170,6 @@ with st.expander("Chat History"):
                 if isinstance(msg, dict) and "role" in msg and "content" in msg:
                     role = "User" if msg["role"] == "user" else "Botify"
                     st.write(f"**{role}:** {msg['content']}")
-                else:
-                    st.error(f"Error: Malformed message in conversation {i + 1}.")
             if st.button(f"Delete Conversation {i + 1}", key=f"delete_{i}"):
                 del st.session_state.chat_history[i]
                 save_chat_history(st.session_state.chat_history)
