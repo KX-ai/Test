@@ -58,6 +58,10 @@ if pdf_file is not None:
         if "chat_history" not in st.session_state:
             st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
 
+        # Truncate chat history to the last 5 exchanges to avoid token limit issues
+        max_history = 5
+        st.session_state.chat_history = st.session_state.chat_history[-max_history:]
+
         # Temporary variable for user input to avoid modifying session_state directly
         temp_user_input = st.text_input("Ask a question about the document:", key="user_input")
 
@@ -65,8 +69,13 @@ if pdf_file is not None:
             # Add user input to chat history
             st.session_state.chat_history.append({"role": "user", "content": temp_user_input})
 
-            # Create prompt for the model using the extracted text (limit size)
-            prompt_text = f"Document content (truncated): {text_content[:1000]}...\n\nUser question: {temp_user_input}\nAnswer:"
+            # Truncate document content to fit within token limits
+            max_content_length = 500  # Adjust as needed
+            truncated_content = text_content[:max_content_length]
+
+            # Create prompt for the model
+            prompt_text = f"Document content (truncated): {truncated_content}...\n\nUser question: {temp_user_input}\nAnswer:"
+            st.session_state.chat_history.append({"role": "system", "content": prompt_text})
 
             try:
                 # Call the Qwen2.5-72B-Instruct model to generate a response
@@ -75,7 +84,7 @@ if pdf_file is not None:
                     messages=st.session_state.chat_history,
                     temperature=0.1,
                     top_p=0.1,
-                    max_tokens=500
+                    max_tokens=300  # Reduce output size to fit within token limits
                 )
 
                 # Extract and display the response
