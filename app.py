@@ -4,7 +4,7 @@ import requests
 import json
 import streamlit as st
 import PyPDF2
-from together import TogetherClient  # Correct import for Together API
+from together import Client  # Correct import for Together API
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -34,14 +34,15 @@ class SambanovaClient:
             raise Exception(f"Error while calling Sambanova API: {str(e)}")
 
 # Together AI Client (DeepSeek LLM Chat 67B Model)
-class TogetherClient:
-    def __init__(self):
-        self.client = TogetherClient()  # Initialize Together client
+class TogetherAIClient:
+    def __init__(self, api_key):
+        self.api_key = api_key
+        self.client = Client(api_key=api_key)  # Initialize Together API client with the API key
 
     def chat(self, model, messages):
         try:
             # Stream chat completions using Together API
-            completion = self.client.chat.completions.create(
+            completion = self.client.chat_completions.create(
                 model=model,
                 messages=messages
             )
@@ -135,7 +136,7 @@ if user_input:
             )
             answer = response['choices'][0]['message']['content'].strip()
         elif model_choice == "Together AI (DeepSeek LLM Chat 67B)":
-            response = TogetherClient().chat(
+            response = TogetherAIClient(api_key=st.secrets["general"]["TOGETHER_API_KEY"]).chat(
                 model="deepseek-llm-chat-67b",  # Updated model name
                 messages=st.session_state.current_chat
             )
