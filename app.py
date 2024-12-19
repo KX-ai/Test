@@ -63,15 +63,13 @@ if pdf_file is not None:
 
         # Display the real-time chat conversation view
         st.write("### Chat Conversation")
-        conversation_container = st.container()
 
         # Display the conversation dynamically
-        with conversation_container:
-            for msg in st.session_state.chat_history:
-                if msg["role"] == "user":
-                    st.markdown(f"**🧑 User:** {msg['content']}")
-                elif msg["role"] == "assistant":
-                    st.markdown(f"**🤖 Botify:** {msg['content']}")
+        for msg in st.session_state.chat_history:
+            if msg["role"] == "user":
+                st.markdown(f"**🧑 User:** {msg['content']}")
+            elif msg["role"] == "assistant":
+                st.markdown(f"**🤖 Botify:** {msg['content']}")
 
         # User input and "Send" button
         user_input = st.text_input(
@@ -114,9 +112,6 @@ if pdf_file is not None:
             finally:
                 end_time = time.time()
                 st.info(f"API call duration: {end_time - start_time:.2f} seconds")
-
-            # Re-render the conversation with the new user and bot messages
-            st.experimental_rerun()
 
         # Display full chat history dynamically in a collapsible container
         with st.expander("Chat History"):
