@@ -3,7 +3,6 @@ openai==0.27.0
 PyPDF2==2.11.2
 altair==4.2.0
 requests==2.28.2
-together==0.1.5  # Assuming Together version 0.1.5, since it's used in the initial import for "Together"
 
 
 
