@@ -5,6 +5,7 @@ import streamlit as st
 import json
 import time  # Import time for rate-limiting retries
 import fitz  # PyMuPDF (corrected import)
+import tempfile
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -77,11 +78,17 @@ class DeepSeekClient:
 # Function to extract text from PDF using PyMuPDF (corrected import)
 @st.cache_data
 def extract_text_from_pdf(pdf_file):
-    doc = fitz.open(pdf_file)  # Open the PDF file using fitz from PyMuPDF
+    # Save the uploaded PDF file to a temporary location
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(pdf_file.read())  # Save the content to a temporary file
+        temp_file_path = temp_file.name
+
+    doc = fitz.open(temp_file_path)  # Open the PDF file using fitz from PyMuPDF
     text = ""
     for page_num in range(len(doc)):  # Iterate over pages
         page = doc.load_page(page_num)  # Load each page
         text += page.get_text()  # Extract text from each page
+    os.remove(temp_file_path)  # Clean up the temporary file
     return text
 
 # Function to truncate text for token limit
@@ -147,12 +154,10 @@ deepseek_api_key = st.secrets["general"]["DEEPSEEK_API_KEY"]
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "DeepSeek LLM Chat (67B)"])
 
-# Use a form to allow "Enter" key to send the message
-with st.form(key="chat_form"):
-    user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter", height=150)
-    submit_button = st.form_submit_button("Send")
+# Use a text input field to capture input and process on Enter key press
+user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
-if submit_button:
+if user_input:
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
     # Prepare the prompt based on uploaded PDF content
