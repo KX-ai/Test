@@ -4,6 +4,7 @@ import requests
 import PyPDF2
 import streamlit as st
 import json
+import time  # Import time for rate-limiting retries
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -41,6 +42,7 @@ class DeepSeekClient:
     def __init__(self, api_key):
         self.api_key = api_key
         self.url = "https://api.together.xyz/v1/chat/completions"
+        self.rate_limit_retry_delay = 1  # Retry delay in seconds for rate-limiting errors
 
     def chat(self, model, messages):
         payload = {
@@ -52,14 +54,25 @@ class DeepSeekClient:
             "content-type": "application/json",
             "authorization": f"Bearer {self.api_key}"
         }
-        try:
-            response = requests.post(self.url, json=payload, headers=headers)
-            response_data = response.json()
-            if response.status_code != 200 or "choices" not in response_data:
-                raise Exception(f"Error: {response_data.get('error', 'Unknown error')}")
-            return response_data
-        except Exception as e:
-            raise Exception(f"Error while calling DeepSeek API: {str(e)}")
+
+        # Retry logic for rate-limiting errors
+        for attempt in range(5):  # Retry up to 5 times
+            try:
+                response = requests.post(self.url, json=payload, headers=headers)
+                response_data = response.json()
+
+                if response.status_code == 429:  # Rate limit error
+                    time.sleep(self.rate_limit_retry_delay)
+                    continue
+
+                if response.status_code != 200 or "choices" not in response_data:
+                    raise Exception(f"Error: {response_data.get('error', 'Unknown error')}")
+                return response_data
+
+            except Exception as e:
+                if attempt == 4:  # Final attempt failed
+                    raise Exception(f"Error while calling DeepSeek API: {str(e)}")
+                time.sleep(self.rate_limit_retry_delay)
 
 # Function to extract text from PDF using PyPDF2
 @st.cache_data
@@ -134,8 +147,9 @@ deepseek_api_key = st.secrets["general"]["DEEPSEEK_API_KEY"]
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "DeepSeek LLM Chat (67B)"])
 
 # Input message
-user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
+user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter", height=150)
 
+# Simulate pressing "Enter" key to send the message
 if user_input:
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
@@ -163,6 +177,7 @@ if user_input:
                 max_tokens=MAX_COMPLETION_TOKENS
             )
             answer = response['choices'][0]['message']['content'].strip()
+
         elif model_choice == "DeepSeek LLM Chat (67B)":
             deepseek_client = DeepSeekClient(api_key=deepseek_api_key)
             response = deepseek_client.chat(
@@ -178,6 +193,8 @@ if user_input:
 
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
+        if "rate limit" in str(e).lower():
+            st.warning("Rate limit exceeded. Please wait a moment and try again.")
 
 # Save chat history
 save_chat_history(st.session_state.chat_history)
