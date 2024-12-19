@@ -3,21 +3,19 @@ import openai
 import requests
 import PyPDF2
 import streamlit as st
+import time
 import json
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
 
-# Maximum context length for Sambanova
-MAX_CONTEXT_LENGTH = 8192
-
 # Use the Sambanova API for Qwen 2.5-72B-Instruct
 class SambanovaClient:
-    def _init_(self, api_key, base_url):
+    def __init__(self, api_key, base_url):
         self.api_key = api_key
         self.base_url = base_url
-        openai.api_key = self.api_key
-        openai.api_base = self.base_url
+        openai.api_key = self.api_key  # Set the API key for the OpenAI client
+        openai.api_base = self.base_url  # Set the base URL for the OpenAI API
 
     def chat(self, model, messages, temperature=0.7, top_p=1.0, max_tokens=500):
         try:
@@ -30,11 +28,12 @@ class SambanovaClient:
             )
             return response
         except Exception as e:
-            raise Exception(f"Error while calling Sambanova API: {str(e)}")
+            raise Exception(f"Error while calling OpenAI API: {str(e)}")
+
 
 # Use the Together API for Wizard LM-2 (8x22b)
 class TogetherClient:
-    def _init_(self, api_key):
+    def __init__(self, api_key):
         self.api_key = api_key
         self.url = "https://api.together.xyz/v1/chat/completions"
 
@@ -50,12 +49,10 @@ class TogetherClient:
         }
         try:
             response = requests.post(self.url, json=payload, headers=headers)
-            response_data = response.json()
-            if response.status_code != 200 or "choices" not in response_data:
-                raise Exception(f"Error: {response_data.get('error', 'Unknown error')}")
-            return response_data
+            return response.json()
         except Exception as e:
             raise Exception(f"Error while calling Together API: {str(e)}")
+
 
 # Function to extract text from PDF using PyPDF2
 @st.cache_data
@@ -66,51 +63,55 @@ def extract_text_from_pdf(pdf_file):
         text += page.extract_text()
     return text
 
+
 # Function to load chat history from a JSON file
 def load_chat_history():
     if os.path.exists(CHAT_HISTORY_FILE):
         with open(CHAT_HISTORY_FILE, "r") as file:
             return json.load(file)
     else:
-        return []
+        return [{"role": "system", "content": "You are a helpful assistant named Botify."}]
+
 
 # Function to save chat history to a JSON file
 def save_chat_history(history):
     with open(CHAT_HISTORY_FILE, "w") as file:
-        json.dump(history, file, indent=4)
+        json.dump(history, file)
 
-# Function to truncate text if it's too long
-def truncate_text(text, max_length=MAX_CONTEXT_LENGTH):
-    return text[:max_length]
 
 # Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
-st.title("Botify")
+st.title("Chatbot with PDF Content (Botify)")
 
 # Upload a PDF file
+st.write("Upload a PDF file and interact with the chatbot to ask questions.")
 pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 
-# Initialize session state for chat
+# Initialize session state to store chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = load_chat_history()
-    st.session_state.current_chat = [{"role": "assistant", "content": "Hello! I am Botify, your assistant. How can I assist you today?"}]
+    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. Upload a PDF and ask me questions."})
 
 # Button to start a new chat
 if st.button("Start New Chat"):
-    st.session_state.current_chat = [{"role": "assistant", "content": "Hello! Starting a new conversation. How can I assist you today?"}]
-    st.session_state.chat_history.append(st.session_state.current_chat)
-    st.success("New chat started!")
+    # Clear the chat history to start fresh
+    st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
+    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. Upload a PDF and ask me questions."})
+    st.success("New chat started! Feel free to ask your question.")
 
-# Display chat dynamically
+# Display the real-time chat conversation view
 st.write("### Chat Conversation")
-for msg in st.session_state.current_chat:
-    if isinstance(msg, dict) and "role" in msg and "content" in msg:
+
+# Placeholder for the conversation, to be updated dynamically
+conversation_placeholder = st.empty()
+
+# Display the conversation dynamically
+with conversation_placeholder.container():
+    for msg in st.session_state.chat_history:
         if msg["role"] == "user":
-            st.markdown(f"*\U0001F9D1 User:* {msg['content']}")
+            st.markdown(f"**🧑 User:** {msg['content']}")
         elif msg["role"] == "assistant":
-            st.markdown(f"*\U0001F916 Botify:* {msg['content']}")
-    else:
-        st.error("Error: A message is missing or malformed in the chat history.")
+            st.markdown(f"**🤖 Botify:** {msg['content']}")
 
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
@@ -119,68 +120,96 @@ together_api_key = "db476cc81d29116da9b75433badfe89666552a25d2cd8efd6cb5a0c916eb
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Wizard LM-2 8x22b)"])
 
-# Input message (via Enter key)
-user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
-
-if user_input:
-    st.session_state.current_chat.append({"role": "user", "content": user_input})
-
-    if pdf_file:
-        text_content = extract_text_from_pdf(pdf_file)
-        truncated_text = truncate_text(text_content)
-        prompt_text = f"Document content:\n{truncated_text}\n\nUser question: {user_input}\nAnswer:"
+if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
+    if not sambanova_api_key:
+        st.error("API key for Sambanova not found! Please check your secrets settings.")
     else:
-        prompt_text = f"User question: {user_input}\nAnswer:"
+        sambanova_client = SambanovaClient(
+            api_key=sambanova_api_key,
+            base_url="https://api.sambanova.ai/v1"
+        )
 
-    st.session_state.current_chat.append({"role": "system", "content": prompt_text})
+elif model_choice == "Together (Wizard LM-2 8x22b)":
+    together_client = TogetherClient(api_key=together_api_key)
 
-    try:
-        if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
-            response = SambanovaClient(
-                api_key=sambanova_api_key,
-                base_url="https://api.sambanova.ai/v1"
-            ).chat(
-                model="Qwen2.5-72B-Instruct",
-                messages=st.session_state.current_chat,
-                temperature=0.1,
-                top_p=0.1,
-                max_tokens=300  # Reduced max tokens for the response
-            )
-            answer = response['choices'][0]['message']['content'].strip()
-        elif model_choice == "Together (Wizard LM-2 8x22b)":
-            # Check if the model is available
-            model_url = f"https://api.together.xyz/v1/models/{model_choice.replace(' ', '').lower()}"
-            model_response = requests.get(model_url, headers={"Authorization": f"Bearer {together_api_key}"})
-            if model_response.status_code != 200:
-                raise Exception("Model not available or invalid.")
+# User input and "Send" button
+user_input = st.text_input(
+    "Your message:", 
+    key="user_input", 
+    placeholder="Type your message here and press Enter or click Send..."
+)
 
-            response = TogetherClient(api_key=together_api_key).chat(
-                model="wizardlm2-8x22b",
-                messages=st.session_state.current_chat
-            )
-            answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
-        
-        st.session_state.current_chat.append({"role": "assistant", "content": answer})
-        st.experimental_rerun()  # Rerun to update chat dynamically
+# Handle user input and send message
+if user_input:
+    # Add user input to chat history
+    st.session_state.chat_history.append({"role": "user", "content": user_input})
 
-    except Exception as e:
-        st.error(f"Error while fetching response: {e}")
+    # Handle PDF file and truncate text content to fit within token limits
+    if pdf_file is not None:
+        # Extract text from the uploaded PDF
+        text_content = extract_text_from_pdf(pdf_file)
+        st.success("PDF content extracted successfully!")
 
-# Save chat history
-save_chat_history(st.session_state.chat_history)
+        # Truncate document content to fit within token limits
+        max_content_length = 500  # Optimized for performance
+        truncated_content = text_content[:max_content_length]
 
-# Display chat history with deletion option
-with st.expander("Chat History"):
-    for i, conversation in enumerate(st.session_state.chat_history):
-        with st.container():
-            st.write(f"*Conversation {i + 1}:*")
-            for msg in conversation:
-                if isinstance(msg, dict) and "role" in msg and "content" in msg:
-                    role = "User" if msg["role"] == "user" else "Botify"
-                    st.write(f"*{role}:* {msg['content']}")
+        # Create prompt for the model
+        prompt_text = f"Document content (truncated): {truncated_content}...\n\nUser question: {user_input}\nAnswer:"
+        st.session_state.chat_history.append({"role": "system", "content": prompt_text})
+
+        # Measure API call time
+        start_time = time.time()
+        try:
+            if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
+                # Call the Qwen2.5-72B-Instruct model to generate a response
+                response = sambanova_client.chat(
+                    model="Qwen2.5-72B-Instruct",
+                    messages=st.session_state.chat_history,
+                    temperature=0.1,
+                    top_p=0.1,
+                    max_tokens=300  # Reduce output size to fit within token limits
+                )
+
+                # Extract the answer from the Sambanova response
+                answer = response['choices'][0]['message']['content'].strip()
+
+            elif model_choice == "Together (Wizard LM-2 8x22b)":
+                # Call the Wizard LM-2 (8x22b) model to generate a response
+                response = together_client.chat(
+                    model="Qwen/Qwen2.5-72B-Instruct-Turbo",
+                    messages=st.session_state.chat_history
+                )
+
+                # Handle response from Together API (no raw response output)
+                if 'choices' in response and len(response['choices']) > 0:
+                    answer = response['choices'][0]['message']['content'].strip()
                 else:
-                    st.error(f"Error: Malformed message in conversation {i + 1}.")
-            if st.button(f"Delete Conversation {i + 1}", key=f"delete_{i}"):
-                del st.session_state.chat_history[i]
-                save_chat_history(st.session_state.chat_history)
-                st.experimental_rerun()
+                    st.error(f"Unexpected response format: {response}")
+                    answer = "Sorry, I couldn't get a response from the model."
+
+            st.session_state.chat_history.append({"role": "assistant", "content": answer})
+
+        except Exception as e:
+            st.error(f"Error occurred while fetching response: {str(e)}")
+        finally:
+            end_time = time.time()
+            st.info(f"API call duration: {end_time - start_time:.2f} seconds")
+
+        # Refresh the conversation to display the entire chat history in real time
+        conversation_placeholder.empty()  # Clear the existing conversation
+        with conversation_placeholder.container():
+            for msg in st.session_state.chat_history:
+                if msg["role"] == "user":
+                    st.markdown(f"**🧑 User:** {msg['content']}")
+                elif msg["role"] == "assistant":
+                    st.markdown(f"**🤖 Botify:** {msg['content']}")
+
+    # Save chat history to file
+    save_chat_history(st.session_state.chat_history)
+
+# Display full chat history dynamically in a collapsible container
+with st.expander("Chat History"):
+    for msg in st.session_state.chat_history:
+        role = "User" if msg["role"] == "user" else "Botify"
+        st.write(f"**{role}:** {msg['content']}")
