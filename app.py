@@ -77,7 +77,7 @@ if pdf_file is not None:
         user_input = st.text_input(
             "Your message:", 
             key="user_input", 
-            placeholder="Type your message here and press Enter"
+            placeholder="Type your message here and press Enter or click Send..."
         )
 
         # Check if Enter was pressed by checking for a change in user_input
@@ -108,10 +108,6 @@ if pdf_file is not None:
                 # Extract and display the response
                 answer = response['choices'][0]['message']['content'].strip()
                 st.session_state.chat_history.append({"role": "assistant", "content": answer})
-
-                # Clear the user input after sending
-                st.session_state.user_input = ""  # Reset input field
-                st.experimental_rerun()
 
             except Exception as e:
                 st.error(f"Error occurred while fetching response: {str(e)}")
