@@ -123,7 +123,9 @@ model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-I
 user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
 if user_input:
-    st.session_state.current_chat.append({"role": "user", "content": user_input})
+    # Ensure the message isn't repeated before appending
+    if user_input != st.session_state.current_chat[-1]["content"]:
+        st.session_state.current_chat.append({"role": "user", "content": user_input})
 
     if pdf_file:
         text_content = extract_text_from_pdf(pdf_file)
@@ -148,14 +150,8 @@ if user_input:
             )
             answer = response['choices'][0]['message']['content'].strip()
         elif model_choice == "Together (Wizard LM-2 8x22b)":
-            # Check if the model is available
-            model_url = f"https://api.together.xyz/v1/models/{model_choice.replace(' ', '').lower()}"
-            model_response = requests.get(model_url, headers={"Authorization": f"Bearer {together_api_key}"})
-            if model_response.status_code != 200:
-                raise Exception("Model not available or invalid.")
-
             response = TogetherClient(api_key=together_api_key).chat(
-                model="wizardlm2-8x22b",
+                model="wizardlm2-8x22b",  # Specify the model name explicitly
                 messages=st.session_state.current_chat
             )
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
