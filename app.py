@@ -4,12 +4,31 @@ import requests
 import PyPDF2
 import streamlit as st
 import json
+from transformers import pipeline
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
 
-# Maximum context length for Sambanova
-MAX_CONTEXT_LENGTH = 8192
+# Context lengths for models
+MAX_CONTEXT_LENGTH_SAMBANOVA = 8192
+MAX_CONTEXT_LENGTH_DEEPSEEK = 4096
+
+# Function to truncate text to a maximum length
+def truncate_text(text, max_length):
+    return text[:max_length]
+
+# Summarization using Hugging Face
+@st.cache_resource
+def get_summarizer():
+    return pipeline("summarization", model="facebook/bart-large-cnn")
+
+def summarize_text(text, max_length=1024):
+    summarizer = get_summarizer()
+    try:
+        summaries = summarizer(text, max_length=max_length, min_length=30, do_sample=False)
+        return summaries[0]['summary_text']
+    except Exception as e:
+        return f"Error during summarization: {e}"
 
 # Use the Sambanova API for Qwen 2.5-72B-Instruct
 class SambanovaClient:
@@ -36,7 +55,7 @@ class SambanovaClient:
 class DeepSeekClient:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.url = "https://api.together.xyz/v1/chat/completions"
+        self.url = "https://api.together.xyz/v1/chat/completions"  # Update the API base URL if needed
 
     def chat(self, model, messages):
         payload = {
@@ -79,10 +98,6 @@ def save_chat_history(history):
     with open(CHAT_HISTORY_FILE, "w") as file:
         json.dump(history, file, indent=4)
 
-# Function to truncate text if it's too long
-def truncate_text(text, max_length=MAX_CONTEXT_LENGTH):
-    return text[:max_length]
-
 # Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
 st.title("Botify")
@@ -104,13 +119,10 @@ if st.button("Start New Chat"):
 # Display chat dynamically
 st.write("### Chat Conversation")
 for msg in st.session_state.current_chat:
-    if isinstance(msg, dict) and "role" in msg and "content" in msg:
-        if msg["role"] == "user":
-            st.markdown(f"*\U0001F9D1 User:* {msg['content']}")
-        elif msg["role"] == "assistant":
-            st.markdown(f"*\U0001F916 Botify:* {msg['content']}")
-    else:
-        st.error("Error: A message is missing or malformed in the chat history.")
+    if msg["role"] == "user":
+        st.markdown(f"*\U0001F9D1 User:* {msg['content']}")
+    elif msg["role"] == "assistant":
+        st.markdown(f"*\U0001F916 Botify:* {msg['content']}")
 
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
@@ -119,49 +131,52 @@ deepseek_api_key = st.secrets["general"]["DEEPSEEK_API_KEY"]
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "DeepSeek LLM Chat (67B)"])
 
-# Input message
+# Input message (via Enter key)
 user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
 if user_input:
-    # Check if the last message is already the user's input to avoid duplication
-    if not (st.session_state.current_chat and st.session_state.current_chat[-1]["role"] == "user" and st.session_state.current_chat[-1]["content"] == user_input):
-        st.session_state.current_chat.append({"role": "user", "content": user_input})
+    # Add user input to chat
+    st.session_state.current_chat.append({"role": "user", "content": user_input})
 
-        # Prepare the prompt based on uploaded PDF content
-        if pdf_file:
-            text_content = extract_text_from_pdf(pdf_file)
-            truncated_text = truncate_text(text_content)
-            st.session_state.current_chat.append({"role": "system", "content": f"Document context:\n{truncated_text}"})
+    # Prepare the prompt based on uploaded PDF content
+    if pdf_file:
+        text_content = extract_text_from_pdf(pdf_file)
+        if len(text_content) > (MAX_CONTEXT_LENGTH_DEEPSEEK - len(user_input)):
+            text_content = summarize_text(text_content, max_length=1024)
+        truncated_text = truncate_text(text_content, MAX_CONTEXT_LENGTH_DEEPSEEK - len(user_input))
+        prompt_text = f"Document content:\n{truncated_text}\n\nUser question: {user_input}\nAnswer:"
+    else:
+        prompt_text = f"User question: {user_input}\nAnswer:"
 
-        try:
-            if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
-                sambanova_client = SambanovaClient(
-                    api_key=sambanova_api_key,
-                    base_url="https://api.sambanova.ai/v1"
-                )
-                response = sambanova_client.chat(
-                    model="Qwen2.5-72B-Instruct",
-                    messages=st.session_state.current_chat,
-                    temperature=0.1,
-                    top_p=0.1,
-                    max_tokens=300
-                )
-                answer = response['choices'][0]['message']['content'].strip()
-            elif model_choice == "DeepSeek LLM Chat (67B)":
-                deepseek_client = DeepSeekClient(api_key=deepseek_api_key)
-                response = deepseek_client.chat(
-                    model="deepseek-ai/deepseek-llm-67b-chat",
-                    messages=st.session_state.current_chat
-                )
-                answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
+    # Call the selected model's API
+    try:
+        if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
+            sambanova_client = SambanovaClient(
+                api_key=sambanova_api_key,
+                base_url="https://api.sambanova.ai/v1"
+            )
+            response = sambanova_client.chat(
+                model="Qwen2.5-72B-Instruct",
+                messages=st.session_state.current_chat,
+                temperature=0.1,
+                top_p=0.1,
+                max_tokens=300
+            )
+            answer = response['choices'][0]['message']['content'].strip()
+        elif model_choice == "DeepSeek LLM Chat (67B)":
+            deepseek_client = DeepSeekClient(api_key=deepseek_api_key)
+            response = deepseek_client.chat(
+                model="deepseek-ai/deepseek-llm-67b-chat",
+                messages=st.session_state.current_chat
+            )
+            answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
+        
+        # Append assistant's response
+        st.session_state.current_chat.append({"role": "assistant", "content": answer})
+        st.experimental_rerun()
 
-            # Append the assistant's response
-            st.session_state.current_chat.append({"role": "assistant", "content": answer})
-            save_chat_history(st.session_state.chat_history)
-            st.experimental_rerun()
-
-        except Exception as e:
-            st.error(f"Error while fetching response: {e}")
+    except Exception as e:
+        st.error(f"Error while fetching response: {e}")
 
 # Save chat history
 save_chat_history(st.session_state.chat_history)
@@ -172,11 +187,8 @@ with st.expander("Chat History"):
         with st.container():
             st.write(f"*Conversation {i + 1}:*")
             for msg in conversation:
-                if isinstance(msg, dict) and "role" in msg and "content" in msg:
-                    role = "User" if msg["role"] == "user" else "Botify"
-                    st.write(f"*{role}:* {msg['content']}")
-                else:
-                    st.error(f"Error: Malformed message in conversation {i + 1}.")
+                role = "User" if msg["role"] == "user" else "Botify"
+                st.write(f"*{role}:* {msg['content']}")
             if st.button(f"Delete Conversation {i + 1}", key=f"delete_{i}"):
                 del st.session_state.chat_history[i]
                 save_chat_history(st.session_state.chat_history)
