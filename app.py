@@ -128,11 +128,10 @@ st.title("Botify")
 # Upload a PDF file
 pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 
-# Display extracted text once the PDF is uploaded
+# Display success message once the PDF is uploaded and processed
 if pdf_file:
     text_content = extract_text_from_pdf(pdf_file)
-    st.write("### Extracted PDF Text:")
-    st.text_area("Extracted Text", text_content, height=300)
+    st.success("PDF text extracted successfully.")
 
 # Initialize session state for chat
 if "chat_history" not in st.session_state:
@@ -163,7 +162,7 @@ model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-I
 # Flag to check if user has entered input before generating responses
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
-# If model changes, prompt user to enter input again
+# Only proceed if the user input is not empty
 if user_input:
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
