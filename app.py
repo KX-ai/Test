@@ -29,7 +29,6 @@ class SambanovaClient:
         except Exception as e:
             raise Exception(f"Error while calling Sambanova API: {str(e)}")
 
-
 # Use the Together API for Wizard LM-2 (8x22b)
 class TogetherClient:
     def __init__(self, api_key):
@@ -52,7 +51,6 @@ class TogetherClient:
         except Exception as e:
             raise Exception(f"Error while calling Together API: {str(e)}")
 
-
 # Function to extract text from PDF using PyPDF2
 @st.cache_data
 def extract_text_from_pdf(pdf_file):
@@ -62,7 +60,6 @@ def extract_text_from_pdf(pdf_file):
         text += page.extract_text()
     return text
 
-
 # Function to load chat history from a JSON file
 def load_chat_history():
     if os.path.exists(CHAT_HISTORY_FILE):
@@ -71,12 +68,10 @@ def load_chat_history():
     else:
         return []
 
-
 # Function to save chat history to a JSON file
 def save_chat_history(history):
     with open(CHAT_HISTORY_FILE, "w") as file:
         json.dump(history, file, indent=4)
-
 
 # Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
@@ -101,9 +96,9 @@ st.write("### Chat Conversation")
 for msg in st.session_state.current_chat:
     if isinstance(msg, dict) and "role" in msg and "content" in msg:
         if msg["role"] == "user":
-            st.markdown(f"**🧑 User:** {msg['content']}")
+            st.markdown(f"**\U0001F9D1 User:** {msg['content']}")
         elif msg["role"] == "assistant":
-            st.markdown(f"**🤖 Botify:** {msg['content']}")
+            st.markdown(f"**\U0001F916 Botify:** {msg['content']}")
     else:
         st.error("Error: A message is missing or malformed in the chat history.")
 
@@ -114,45 +109,43 @@ together_api_key = "db476cc81d29116da9b75433badfe89666552a25d2cd8efd6cb5a0c916eb
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Wizard LM-2 8x22b)"])
 
-# Prompt user for input
-with st.form(key="user_input_form"):
-    user_input = st.text_input(
-        "Your message:",
-        key="user_input",
-        placeholder="Type your message here and press Enter"
-    )
-    submit_button = st.form_submit_button(label="Send")
+# Wait for user input
+user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
+submit_button = st.button("Submit")
 
 if submit_button and user_input:
     st.session_state.current_chat.append({"role": "user", "content": user_input})
-    
+
     if pdf_file:
         text_content = extract_text_from_pdf(pdf_file)
         prompt_text = f"Document content:\n{text_content}\n\nUser question: {user_input}\nAnswer:"
-        st.session_state.current_chat.append({"role": "system", "content": prompt_text})
+    else:
+        prompt_text = f"User question: {user_input}\nAnswer:"
 
-        try:
-            if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
-                response = SambanovaClient(
-                    api_key=sambanova_api_key,
-                    base_url="https://api.sambanova.ai/v1"
-                ).chat(
-                    model="Qwen2.5-72B-Instruct",
-                    messages=st.session_state.current_chat,
-                    temperature=0.1,
-                    top_p=0.1,
-                    max_tokens=300
-                )
-                answer = response['choices'][0]['message']['content'].strip()
-            elif model_choice == "Together (Wizard LM-2 8x22b)":
-                response = TogetherClient(api_key=together_api_key).chat(
-                    model="wizardlm2-8x22b",
-                    messages=st.session_state.current_chat
-                )
-                answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
-            st.session_state.current_chat.append({"role": "assistant", "content": answer})
-        except Exception as e:
-            st.error(f"Error while fetching response: {e}")
+    st.session_state.current_chat.append({"role": "system", "content": prompt_text})
+
+    try:
+        if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
+            response = SambanovaClient(
+                api_key=sambanova_api_key,
+                base_url="https://api.sambanova.ai/v1"
+            ).chat(
+                model="Qwen2.5-72B-Instruct",
+                messages=st.session_state.current_chat,
+                temperature=0.1,
+                top_p=0.1,
+                max_tokens=300
+            )
+            answer = response['choices'][0]['message']['content'].strip()
+        elif model_choice == "Together (Wizard LM-2 8x22b)":
+            response = TogetherClient(api_key=together_api_key).chat(
+                model="wizardlm2-8x22b",
+                messages=st.session_state.current_chat
+            )
+            answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
+        st.session_state.current_chat.append({"role": "assistant", "content": answer})
+    except Exception as e:
+        st.error(f"Error while fetching response: {e}")
 
 # Save chat history
 save_chat_history(st.session_state.chat_history)
