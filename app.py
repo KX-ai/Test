@@ -74,6 +74,13 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
     st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. Upload a PDF and ask me questions."})
 
+# Button to start a new chat
+if st.button("Start New Chat"):
+    # Clear the chat history to start fresh
+    st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
+    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. Upload a PDF and ask me questions."})
+    st.success("New chat started! Feel free to ask your question.")
+
 # Display the real-time chat conversation view
 st.write("### Chat Conversation")
 
