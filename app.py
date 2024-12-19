@@ -119,11 +119,12 @@ def truncate_chat_history(chat_history, pdf_context, max_length):
 
     # Add the previous conversation messages to the history
     for message in reversed(chat_history):
-        message_text = message["content"]
-        total_length += len(message_text)
-        if total_length > max_length:
-            break
-        truncated_history.insert(0, message)
+        if message and "content" in message:  # Check for None and ensure message has 'content'
+            message_text = message["content"]
+            total_length += len(message_text)
+            if total_length > max_length:
+                break
+            truncated_history.insert(0, message)
     
     return truncated_history
 
@@ -185,7 +186,7 @@ model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-I
 # Flag to check if user has entered input before generating responses
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
-# Only proceed if the user input is not empty
+# Only proceed if the user input is not empty and has pressed Enter
 if user_input:
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
