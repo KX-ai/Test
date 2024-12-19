@@ -32,11 +32,11 @@ class SambanovaClient:
         except Exception as e:
             raise Exception(f"Error while calling Sambanova API: {str(e)}")
 
-# Use the Together API for WizardLM v1.2 (13B)
-class TogetherClient:
+# Use the DeepSeek API for DeepSeek LLM Chat (67B)
+class DeepSeekClient:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.url = "https://api.together.xyz/v1/chat/completions"
+        self.url = "https://api.deepseek.ai/v1/chat/completions"  # Make sure to check if DeepSeek has a different API base URL
 
     def chat(self, model, messages):
         payload = {
@@ -55,7 +55,7 @@ class TogetherClient:
                 raise Exception(f"Error: {response_data.get('error', 'Unknown error')}")
             return response_data
         except Exception as e:
-            raise Exception(f"Error while calling Together API: {str(e)}")
+            raise Exception(f"Error while calling DeepSeek API: {str(e)}")
 
 # Function to extract text from PDF using PyPDF2
 @st.cache_data
@@ -114,10 +114,10 @@ for msg in st.session_state.current_chat:
 
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
-together_api_key = st.secrets["general"]["TOGETHER_API_KEY"]
+deepseek_api_key = st.secrets["general"]["DEEPEEK_API_KEY"]
 
 # Model selection
-model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (WizardLM v1.2 13B)"])
+model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "DeepSeek LLM Chat (67B)"])
 
 # Input message (via Enter key)
 user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
@@ -150,10 +150,10 @@ if user_input:
                     max_tokens=300
                 )
                 answer = response['choices'][0]['message']['content'].strip()
-            elif model_choice == "Together (WizardLM v1.2 13B)":
-                together_client = TogetherClient(api_key=together_api_key)
-                response = together_client.chat(
-                    model="wizardlm-1.2-13b",
+            elif model_choice == "DeepSeek LLM Chat (67B)":
+                deepseek_client = DeepSeekClient(api_key=deepseek_api_key)
+                response = deepseek_client.chat(
+                    model="deepseek-ai/deepseek-llm-67b-chat",
                     messages=st.session_state.current_chat
                 )
                 answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
