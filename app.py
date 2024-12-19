@@ -36,7 +36,7 @@ class SambanovaClient:
 class DeepSeekClient:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.url = "https://api.deepseek.ai/v1/chat/completions"  # Make sure to check if DeepSeek has a different API base URL
+        self.url = "https://api.together.xyz/v1/chat/completions"  # Make sure to check if DeepSeek has a different API base URL
 
     def chat(self, model, messages):
         payload = {
@@ -114,7 +114,7 @@ for msg in st.session_state.current_chat:
 
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
-deepseek_api_key = st.secrets["general"]["DEEPEEK_API_KEY"]
+deepseek_api_key = st.secrets["general"]["DEEPSEEK_API_KEY"]
 
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "DeepSeek LLM Chat (67B)"])
