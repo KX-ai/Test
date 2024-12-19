@@ -71,17 +71,6 @@ pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 # Initialize session state to store chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
-    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! How can I assist you today?"})  # Initial greeting
-
-# Model selection and API keys
-sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
-together_api_key = "db476cc81d29116da9b75433badfe89666552a25d2cd8efd6cb5a0c916eb8f50"
-model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Wizard LM-2 8x22b)"])
-
-# Create new chat button
-if st.button("Start a New Chat"):
-    st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
-    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! How can I assist you today?"})
 
 # Display the real-time chat conversation view
 st.write("### Chat Conversation")
@@ -97,6 +86,29 @@ with conversation_placeholder.container():
         elif msg["role"] == "assistant":
             st.markdown(f"**🤖 Botify:** {msg['content']}")
 
+# API keys
+sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
+together_api_key = "db476cc81d29116da9b75433badfe89666552a25d2cd8efd6cb5a0c916eb8f50"
+
+# Model selection
+model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Wizard LM-2 8x22b)"])
+
+if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
+    if not sambanova_api_key:
+        st.error("API key for Sambanova not found! Please check your secrets settings.")
+    else:
+        sambanova_client = SambanovaClient(
+            api_key=sambanova_api_key,
+            base_url="https://api.sambanova.ai/v1"
+        )
+
+elif model_choice == "Together (Wizard LM-2 8x22b)":
+    together_client = TogetherClient(api_key=together_api_key)
+
+# Display a hello message before allowing user input
+if not st.session_state.chat_history:
+    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. Upload a PDF and ask me questions."})
+
 # User input and "Send" button
 user_input = st.text_input(
     "Your message:", 
@@ -109,60 +121,66 @@ if user_input:
     # Add user input to chat history
     st.session_state.chat_history.append({"role": "user", "content": user_input})
 
-    # Truncate document content to fit within token limits
-    max_content_length = 500  # Optimized for performance
-    truncated_content = text_content[:max_content_length]
+    # Handle PDF file and truncate text content to fit within token limits
+    if pdf_file is not None:
+        # Extract text from the uploaded PDF
+        text_content = extract_text_from_pdf(pdf_file)
+        st.success("PDF content extracted successfully!")
 
-    # Create prompt for the model
-    prompt_text = f"Document content (truncated): {truncated_content}...\n\nUser question: {user_input}\nAnswer:"
-    st.session_state.chat_history.append({"role": "system", "content": prompt_text})
+        # Truncate document content to fit within token limits
+        max_content_length = 500  # Optimized for performance
+        truncated_content = text_content[:max_content_length]
 
-    # Measure API call time
-    start_time = time.time()
-    try:
-        if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
-            # Call the Qwen2.5-72B-Instruct model to generate a response
-            response = sambanova_client.chat(
-                model="Qwen2.5-72B-Instruct",
-                messages=st.session_state.chat_history,
-                temperature=0.1,
-                top_p=0.1,
-                max_tokens=300  # Reduce output size to fit within token limits
-            )
+        # Create prompt for the model
+        prompt_text = f"Document content (truncated): {truncated_content}...\n\nUser question: {user_input}\nAnswer:"
+        st.session_state.chat_history.append({"role": "system", "content": prompt_text})
 
-            # Extract the answer from the Sambanova response
-            answer = response['choices'][0]['message']['content'].strip()
+        # Measure API call time
+        start_time = time.time()
+        try:
+            if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
+                # Call the Qwen2.5-72B-Instruct model to generate a response
+                response = sambanova_client.chat(
+                    model="Qwen2.5-72B-Instruct",
+                    messages=st.session_state.chat_history,
+                    temperature=0.1,
+                    top_p=0.1,
+                    max_tokens=300  # Reduce output size to fit within token limits
+                )
 
-        elif model_choice == "Together (Wizard LM-2 8x22b)":
-            # Call the Wizard LM-2 (8x22b) model to generate a response
-            response = together_client.chat(
-                model="Qwen/Qwen2.5-72B-Instruct-Turbo",
-                messages=st.session_state.chat_history
-            )
-
-            # Handle response from Together API (no raw response output)
-            if 'choices' in response and len(response['choices']) > 0:
+                # Extract the answer from the Sambanova response
                 answer = response['choices'][0]['message']['content'].strip()
-            else:
-                st.error(f"Unexpected response format: {response}")
-                answer = "Sorry, I couldn't get a response from the model."
 
-        st.session_state.chat_history.append({"role": "assistant", "content": answer})
+            elif model_choice == "Together (Wizard LM-2 8x22b)":
+                # Call the Wizard LM-2 (8x22b) model to generate a response
+                response = together_client.chat(
+                    model="Qwen/Qwen2.5-72B-Instruct-Turbo",
+                    messages=st.session_state.chat_history
+                )
 
-    except Exception as e:
-        st.error(f"Error occurred while fetching response: {str(e)}")
-    finally:
-        end_time = time.time()
-        st.info(f"API call duration: {end_time - start_time:.2f} seconds")
+                # Handle response from Together API (no raw response output)
+                if 'choices' in response and len(response['choices']) > 0:
+                    answer = response['choices'][0]['message']['content'].strip()
+                else:
+                    st.error(f"Unexpected response format: {response}")
+                    answer = "Sorry, I couldn't get a response from the model."
 
-    # Refresh the conversation to display the entire chat history in real time
-    conversation_placeholder.empty()  # Clear the existing conversation
-    with conversation_placeholder.container():
-        for msg in st.session_state.chat_history:
-            if msg["role"] == "user":
-                st.markdown(f"**🧑 User:** {msg['content']}")
-            elif msg["role"] == "assistant":
-                st.markdown(f"**🤖 Botify:** {msg['content']}")
+            st.session_state.chat_history.append({"role": "assistant", "content": answer})
+
+        except Exception as e:
+            st.error(f"Error occurred while fetching response: {str(e)}")
+        finally:
+            end_time = time.time()
+            st.info(f"API call duration: {end_time - start_time:.2f} seconds")
+
+        # Refresh the conversation to display the entire chat history in real time
+        conversation_placeholder.empty()  # Clear the existing conversation
+        with conversation_placeholder.container():
+            for msg in st.session_state.chat_history:
+                if msg["role"] == "user":
+                    st.markdown(f"**🧑 User:** {msg['content']}")
+                elif msg["role"] == "assistant":
+                    st.markdown(f"**🤖 Botify:** {msg['content']}")
 
 # Display full chat history dynamically in a collapsible container
 with st.expander("Chat History"):
