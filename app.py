@@ -36,7 +36,7 @@ class SambanovaClient:
 class TogetherAIClient:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.url = "https://api.together.xyz/v1/chat/completions"  # Together API endpoint
+        self.url = "https://api.together.xyz/v1/chat/completions"  # Ensure this is the correct endpoint
 
     def chat(self, model, messages):
         headers = {
@@ -50,8 +50,13 @@ class TogetherAIClient:
         }
 
         try:
+            # Debugging: log the request
+            print(f"Making POST request to {self.url} with payload: {json.dumps(payload, indent=2)}")
+
             # Make the API request using the requests library
             response = requests.post(self.url, headers=headers, json=payload)
+            
+            # Check if response is successful
             response.raise_for_status()  # Raise an exception for 4xx/5xx responses
 
             # Parse the response and extract the generated content
@@ -59,6 +64,8 @@ class TogetherAIClient:
             return result['choices'][0]['message']['content'].strip()
 
         except requests.exceptions.RequestException as e:
+            # Debugging: log the error
+            print(f"Error while calling Together AI API: {e}")
             raise Exception(f"Error while calling Together AI API: {str(e)}")
 
 # Function to extract text from PDF using PyPDF2
