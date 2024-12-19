@@ -108,13 +108,13 @@ conversation_placeholder = st.empty()
 # Display the conversation dynamically
 with conversation_placeholder.container():
     for msg in st.session_state.current_chat:
-        if msg:  # Ensure the message is not None
+        if isinstance(msg, dict) and "role" in msg and "content" in msg:  # Check if msg is a valid dictionary
             if msg["role"] == "user":
                 st.markdown(f"**🧑 User:** {msg['content']}")
             elif msg["role"] == "assistant":
                 st.markdown(f"**🤖 Botify:** {msg['content']}")
         else:
-            st.error("Error: A message is missing in the current chat history.")
+            st.error("Error: A message is missing or malformed in the current chat history.")
 
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
@@ -200,7 +200,7 @@ if user_input:
         conversation_placeholder.empty()  # Clear the existing conversation
         with conversation_placeholder.container():
             for msg in st.session_state.current_chat:
-                if msg:  # Ensure the message is not None
+                if isinstance(msg, dict) and "role" in msg and "content" in msg:  # Ensure msg is a dictionary
                     if msg["role"] == "user":
                         st.markdown(f"**🧑 User:** {msg['content']}")
                     elif msg["role"] == "assistant":
@@ -216,8 +216,8 @@ with st.expander("Chat History"):
     for i, conversation in enumerate(st.session_state.chat_history):
         st.write(f"**Conversation {i+1}:**")
         for msg in conversation:
-            if msg:  # Ensure the message is not None
+            if isinstance(msg, dict) and "role" in msg and "content" in msg:  # Ensure msg is a valid dictionary
                 role = "User" if msg["role"] == "user" else "Botify"
                 st.write(f"**{role}:** {msg['content']}")
             else:
-                st.error("Error: A message is missing in the chat history.")
+                st.error("Error: A message is missing or malformed in the chat history.")
