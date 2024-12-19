@@ -74,10 +74,10 @@ class DeepSeekClient:
                     raise Exception(f"Error while calling DeepSeek API: {str(e)}")
                 time.sleep(self.rate_limit_retry_delay)
 
-# Function to extract text from PDF using PyMuPDF (instead of fitz or PyPDF2)
+# Function to extract text from PDF using PyMuPDF (corrected import)
 @st.cache_data
 def extract_text_from_pdf(pdf_file):
-    doc = PyMuPDF.open(pdf_file)  # Open the PDF file
+    doc = fitz.open(pdf_file)  # Open the PDF file using fitz from PyMuPDF
     text = ""
     for page_num in range(len(doc)):  # Iterate over pages
         page = doc.load_page(page_num)  # Load each page
