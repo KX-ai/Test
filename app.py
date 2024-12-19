@@ -37,7 +37,7 @@ class SambanovaClient:
 class TogetherAIClient:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.client = Together(api_key=7552f4196075ac4b031496280496f89d0107ae1028d0e0596878d330a05467de)  # Initialize Together API client with the API key
+        self.client = Together(api_key=st.secrets["general"]["TOGETHER_API_KEY"])
 
     def chat(self, model, messages):
         try:
