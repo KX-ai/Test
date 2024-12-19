@@ -40,6 +40,7 @@ class GroqClient:
 
     def chat(self, model, messages):
         try:
+            # Ensure we do not pass 'proxies' or any unsupported argument here
             chat_completion = self.client.chat.completions.create(
                 messages=messages,
                 model=model
