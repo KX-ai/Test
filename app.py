@@ -1,25 +1,25 @@
 import os
 import openai
 import requests
-import json
-import streamlit as st
 import PyPDF2
+import streamlit as st
+import json
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
 
-# Maximum context length
+# Maximum context length for Sambanova
 MAX_CONTEXT_LENGTH = 8192
 
-# Sambanova Client (Qwen Model)
+# Use the Sambanova API for Qwen 2.5-72B-Instruct
 class SambanovaClient:
-    def __init__(self, api_key, base_url):
+    def _init_(self, api_key, base_url):
         self.api_key = api_key
         self.base_url = base_url
         openai.api_key = self.api_key
         openai.api_base = self.base_url
 
-    def chat(self, model, messages, temperature=0.7, top_p=1.0, max_tokens=1000):  # Increased max_tokens
+    def chat(self, model, messages, temperature=0.7, top_p=1.0, max_tokens=500):
         try:
             response = openai.ChatCompletion.create(
                 model=model,
@@ -32,41 +32,30 @@ class SambanovaClient:
         except Exception as e:
             raise Exception(f"Error while calling Sambanova API: {str(e)}")
 
-# Together AI Client (DeepSeek LLM Chat 67B Model)
-class TogetherAIClient:
-    def __init__(self, api_key):
+# Use the Together API for Wizard LM-2 (8x22b)
+class TogetherClient:
+    def _init_(self, api_key):
         self.api_key = api_key
-        self.url = "https://api.together.xyz/v1/chat/completions"  # Ensure this is the correct endpoint
+        self.url = "https://api.together.xyz/v1/chat/completions"
 
     def chat(self, model, messages):
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        
         payload = {
-            "model": model,  # DeepSeek LLM Chat 67B model
+            "model": model,
             "messages": messages
         }
-
+        headers = {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "authorization": f"Bearer {self.api_key}"
+        }
         try:
-            # Debugging: log the request
-            print(f"Making POST request to {self.url} with payload: {json.dumps(payload, indent=2)}")
-
-            # Make the API request using the requests library
-            response = requests.post(self.url, headers=headers, json=payload)
-            
-            # Check if response is successful
-            response.raise_for_status()  # Raise an exception for 4xx/5xx responses
-
-            # Parse the response and extract the generated content
-            result = response.json()
-            return result['choices'][0]['message']['content'].strip()
-
-        except requests.exceptions.RequestException as e:
-            # Debugging: log the error
-            print(f"Error while calling Together AI API: {e}")
-            raise Exception(f"Error while calling Together AI API: {str(e)}")
+            response = requests.post(self.url, json=payload, headers=headers)
+            response_data = response.json()
+            if response.status_code != 200 or "choices" not in response_data:
+                raise Exception(f"Error: {response_data.get('error', 'Unknown error')}")
+            return response_data
+        except Exception as e:
+            raise Exception(f"Error while calling Together API: {str(e)}")
 
 # Function to extract text from PDF using PyPDF2
 @st.cache_data
@@ -77,7 +66,7 @@ def extract_text_from_pdf(pdf_file):
         text += page.extract_text()
     return text
 
-# Load chat history
+# Function to load chat history from a JSON file
 def load_chat_history():
     if os.path.exists(CHAT_HISTORY_FILE):
         with open(CHAT_HISTORY_FILE, "r") as file:
@@ -85,12 +74,12 @@ def load_chat_history():
     else:
         return []
 
-# Save chat history
+# Function to save chat history to a JSON file
 def save_chat_history(history):
     with open(CHAT_HISTORY_FILE, "w") as file:
         json.dump(history, file, indent=4)
 
-# Truncate long texts
+# Function to truncate text if it's too long
 def truncate_text(text, max_length=MAX_CONTEXT_LENGTH):
     return text[:max_length]
 
@@ -117,17 +106,24 @@ st.write("### Chat Conversation")
 for msg in st.session_state.current_chat:
     if isinstance(msg, dict) and "role" in msg and "content" in msg:
         if msg["role"] == "user":
-            st.markdown(f"**\U0001F9D1 User:** {msg['content']}")
+            st.markdown(f"*\U0001F9D1 User:* {msg['content']}")
         elif msg["role"] == "assistant":
-            st.markdown(f"**\U0001F916 Botify:** {msg['content']}")
+            st.markdown(f"*\U0001F916 Botify:* {msg['content']}")
+    else:
+        st.error("Error: A message is missing or malformed in the chat history.")
+
+# API keys
+sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
+together_api_key = "db476cc81d29116da9b75433badfe89666552a25d2cd8efd6cb5a0c916eb8f50"
 
 # Model selection
-model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together AI (DeepSeek LLM Chat 67B)"])
+model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Wizard LM-2 8x22b)"])
 
-# Input message
-user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
+# Input message (via Enter key)
+user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
 if user_input:
+    # Ensure the message isn't repeated before appending
     if user_input != st.session_state.current_chat[-1]["content"]:
         st.session_state.current_chat.append({"role": "user", "content": user_input})
 
@@ -143,42 +139,44 @@ if user_input:
     try:
         if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
             response = SambanovaClient(
-                api_key=st.secrets["general"]["SAMBANOVA_API_KEY"],
+                api_key=sambanova_api_key,
                 base_url="https://api.sambanova.ai/v1"
             ).chat(
                 model="Qwen2.5-72B-Instruct",
                 messages=st.session_state.current_chat,
                 temperature=0.1,
                 top_p=0.1,
-                max_tokens=1000  # Increased max_tokens for longer responses
+                max_tokens=300  # Reduced max tokens for the response
             )
             answer = response['choices'][0]['message']['content'].strip()
-        elif model_choice == "Together AI (DeepSeek LLM Chat 67B)":
-            response = TogetherAIClient(api_key=st.secrets["general"]["TOGETHER_API_KEY"]).chat(
-                model="deepseek-llm-chat-67b",  # DeepSeek LLM Chat 67B model
+        elif model_choice == "Together (Wizard LM-2 8x22b)":
+            response = TogetherClient(api_key=together_api_key).chat(
+                model="wizardlm2-8x22b",  # Specify the model name explicitly
                 messages=st.session_state.current_chat
             )
-            answer = response
+            answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
         
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
-        save_chat_history(st.session_state.chat_history)
-
-        # Force Streamlit to rerun to update the UI
-        st.experimental_rerun()
+        st.experimental_rerun()  # Rerun to update chat dynamically
 
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
+
+# Save chat history
+save_chat_history(st.session_state.chat_history)
 
 # Display chat history with deletion option
 with st.expander("Chat History"):
     for i, conversation in enumerate(st.session_state.chat_history):
         with st.container():
-            st.write(f"**Conversation {i + 1}:**")
+            st.write(f"*Conversation {i + 1}:*")
             for msg in conversation:
                 if isinstance(msg, dict) and "role" in msg and "content" in msg:
                     role = "User" if msg["role"] == "user" else "Botify"
-                    st.write(f"**{role}:** {msg['content']}")
+                    st.write(f"*{role}:* {msg['content']}")
+                else:
+                    st.error(f"Error: Malformed message in conversation {i + 1}.")
             if st.button(f"Delete Conversation {i + 1}", key=f"delete_{i}"):
                 del st.session_state.chat_history[i]
                 save_chat_history(st.session_state.chat_history)
-                st.experimental_rerun()  # Force Streamlit to rerun and update UI
+                st.experimental_rerun()
