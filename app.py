@@ -73,14 +73,17 @@ if pdf_file is not None:
                 elif msg["role"] == "assistant":
                     st.markdown(f"**🤖 Botify:** {msg['content']}")
 
-        # User input at the bottom
+        # User input and "Send" button
         user_input = st.text_input(
             "Your message:", 
             key="user_input", 
-            placeholder="Type your message and press Enter to send..."
+            placeholder="Type your message here and press Enter or click Send..."
         )
+        send_button = st.button("Send")
 
-        if user_input:
+        # Check if user pressed Enter or clicked Send
+        if user_input and (send_button or st.session_state.get("send_triggered", False)):
+            st.session_state["send_triggered"] = False  # Reset trigger after sending
             # Add user input to chat history
             st.session_state.chat_history.append({"role": "user", "content": user_input})
 
@@ -108,7 +111,8 @@ if pdf_file is not None:
                 answer = response['choices'][0]['message']['content'].strip()
                 st.session_state.chat_history.append({"role": "assistant", "content": answer})
 
-                # Refresh the chat container to display the latest interaction
+                # Clear user input
+                st.session_state.user_input = ""
                 st.experimental_rerun()
 
             except Exception as e:
@@ -116,3 +120,5 @@ if pdf_file is not None:
             finally:
                 end_time = time.time()
                 st.info(f"API call duration: {end_time - start_time:.2f} seconds")
+
+        # Monitor Enter key to simulate a button clic
