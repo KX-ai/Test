@@ -152,7 +152,8 @@ if not st.session_state.chat_history:
 # Button to start a new chat
 if st.button("Start New Chat"):
     st.session_state.current_chat = [{"role": "assistant", "content": "Hello! Starting a new conversation. How can I assist you today?"}]
-    st.session_state.chat_history.append(st.session_state.current_chat)
+    st.session_state.chat_history = []
+    st.session_state.pdf_file = None
     save_chat_history(st.session_state.chat_history)
     st.success("New chat started!")
 
@@ -163,18 +164,20 @@ def delete_conversation(idx):
         save_chat_history(st.session_state.chat_history)
         st.experimental_rerun()
 
-# Display chat history with delete button for each conversation
+# Display chat history with dropdown for each conversation
 st.write("### Chat History")
-for idx, conversation in enumerate(st.session_state.chat_history):
-    st.write(f"**Conversation {idx + 1}:**")
-    for msg in conversation:
+conversation_choice = st.selectbox("Choose a conversation to view:", range(len(st.session_state.chat_history)), format_func=lambda x: f"Conversation {x + 1}")
+selected_conversation = st.session_state.chat_history[conversation_choice]
+
+with st.expander(f"Conversation {conversation_choice + 1}"):
+    for msg in selected_conversation:
         if msg["role"] == "user":
             st.markdown(f"*\U0001F9D1 User:* {msg['content']}")
         elif msg["role"] == "assistant":
             st.markdown(f"*\U0001F916 Botify:* {msg['content']}")
-    delete_button = st.button(f"Delete Conversation {idx + 1}", key=f"delete_{idx}")
+    delete_button = st.button(f"Delete Conversation {conversation_choice + 1}", key=f"delete_{conversation_choice}")
     if delete_button:
-        delete_conversation(idx)
+        delete_conversation(conversation_choice)
 
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
@@ -185,6 +188,11 @@ model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-I
 
 # Flag to check if user has entered input before generating responses
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
+
+# Notify user if model selection is changed and they should enter a new message
+if st.session_state.get("model_selected", "") != model_choice:
+    st.session_state.model_selected = model_choice
+    st.warning("Please enter a new message to get a response from the selected model.")
 
 # Only proceed if the user input is not empty and has pressed Enter
 if user_input:
