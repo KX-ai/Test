@@ -1,9 +1,9 @@
 import os
 import openai
+import requests
 import json
 import streamlit as st
 import PyPDF2
-from groq import Groq  # Import the Groq client
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -35,18 +35,25 @@ class SambanovaClient:
 # Groq API Client (Gemma Model)
 class GroqClient:
     def __init__(self, api_key):
-        # Initialize Groq client with the API key
-        self.client = Groq(api_key=api_key)
+        self.api_key = api_key
+        self.url = "https://api.groq.com/v1/chat/completions"  # Replace with correct URL if necessary
 
     def chat(self, model, messages):
+        payload = {
+            "model": model,
+            "messages": messages
+        }
+        headers = {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "authorization": f"Bearer {self.api_key}"
+        }
         try:
-            # Make a chat completion request using the Groq client
-            chat_completion = self.client.chat.completions.create(
-                messages=messages,
-                model=model  # Specify the model (e.g., llama3-8b-8192)
-            )
-            # Return the response content
-            return chat_completion.choices[0].message.content
+            response = requests.post(self.url, json=payload, headers=headers)
+            response_data = response.json()
+            if response.status_code != 200 or "choices" not in response_data:
+                raise Exception(f"Error: {response_data.get('error', 'Unknown error')}")
+            return response_data
         except Exception as e:
             raise Exception(f"Error while calling Groq API: {str(e)}")
 
@@ -108,10 +115,10 @@ sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
 groq_api_key = st.secrets["general"]["GROQ_API_KEY"]
 
 # Model selection
-model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Groq (Llama3-8B-8192)"])
+model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Groq (Gemma-2-9B-IT)"])
 
 # Input message
-user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
+user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
 if user_input:
     if user_input != st.session_state.current_chat[-1]["content"]:
@@ -139,12 +146,12 @@ if user_input:
                 max_tokens=300
             )
             answer = response['choices'][0]['message']['content'].strip()
-        elif model_choice == "Groq (Llama3-8B-8192)":
+        elif model_choice == "Groq (Gemma-2-9B-IT)":
             response = GroqClient(api_key=groq_api_key).chat(
-                model="llama3-8b-8192",  # Specify the correct model name here
+                model="gemma-2-9b-it",  # Specify the correct model name if different
                 messages=st.session_state.current_chat
             )
-            answer = response.strip()  # Response is already clean, no need to access nested fields
+            answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
         
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
         st.experimental_rerun()  # Rerun to update chat dynamically
