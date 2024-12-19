@@ -117,6 +117,15 @@ if pdf_file is not None:
                 end_time = time.time()
                 st.info(f"API call duration: {end_time - start_time:.2f} seconds")
 
+        # Refresh the conversation to display the entire chat history in real time
+        conversation_placeholder.empty()  # Clear the existing conversation
+        with conversation_placeholder.container():
+            for msg in st.session_state.chat_history:
+                if msg["role"] == "user":
+                    st.markdown(f"**🧑 User:** {msg['content']}")
+                elif msg["role"] == "assistant":
+                    st.markdown(f"**🤖 Botify:** {msg['content']}")
+
         # Display full chat history dynamically in a collapsible container
         with st.expander("Chat History"):
             for msg in st.session_state.chat_history:
