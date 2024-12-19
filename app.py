@@ -2,6 +2,7 @@ import os
 import openai
 import PyPDF2
 import streamlit as st
+import time
 
 # Use the Sambanova API for Qwen 2.5-72B-Instruct
 class SambanovaClient:
@@ -25,6 +26,7 @@ class SambanovaClient:
             raise Exception(f"Error while calling OpenAI API: {str(e)}")
 
 # Function to extract text from PDF using PyPDF2
+@st.cache_data
 def extract_text_from_pdf(pdf_file):
     reader = PyPDF2.PdfReader(pdf_file)
     text = ""
@@ -58,25 +60,27 @@ if pdf_file is not None:
         if "chat_history" not in st.session_state:
             st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
 
-        # Truncate chat history to the last 5 exchanges to avoid token limit issues
-        max_history = 5
+        # Truncate chat history to the last 2 exchanges for performance
+        max_history = 2
         st.session_state.chat_history = st.session_state.chat_history[-max_history:]
 
-        # Temporary variable for user input to avoid modifying session_state directly
-        temp_user_input = st.text_input("Ask a question about the document:", key="user_input")
+        # User input for questions
+        user_input = st.text_input("Ask a question about the document:")
 
-        if temp_user_input:
+        if user_input:
             # Add user input to chat history
-            st.session_state.chat_history.append({"role": "user", "content": temp_user_input})
+            st.session_state.chat_history.append({"role": "user", "content": user_input})
 
             # Truncate document content to fit within token limits
-            max_content_length = 500  # Adjust as needed
+            max_content_length = 300  # Optimized for performance
             truncated_content = text_content[:max_content_length]
 
             # Create prompt for the model
-            prompt_text = f"Document content (truncated): {truncated_content}...\n\nUser question: {temp_user_input}\nAnswer:"
+            prompt_text = f"Document content (truncated): {truncated_content}...\n\nUser question: {user_input}\nAnswer:"
             st.session_state.chat_history.append({"role": "system", "content": prompt_text})
 
+            # Measure API call time
+            start_time = time.time()
             try:
                 # Call the Qwen2.5-72B-Instruct model to generate a response
                 response = sambanova_client.chat(
@@ -92,11 +96,11 @@ if pdf_file is not None:
                 st.session_state.chat_history.append({"role": "assistant", "content": answer})
                 st.write(f"Botify: {answer}")
 
-                # Clear the temporary input (reset functionality)
-                st.experimental_rerun()
-
             except Exception as e:
                 st.error(f"Error occurred while fetching response: {str(e)}")
+            finally:
+                end_time = time.time()
+                st.write(f"API call duration: {end_time - start_time:.2f} seconds")
 
         # Display the chat history
         with st.expander("Chat History"):
