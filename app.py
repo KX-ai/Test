@@ -4,6 +4,7 @@ import requests
 import json
 import streamlit as st
 import PyPDF2
+from groq import Groq
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -35,25 +36,17 @@ class SambanovaClient:
 # Groq API Client (Gemma Model)
 class GroqClient:
     def __init__(self, api_key):
-        self.api_key = api_key
-        self.url = "https://api.groq.com/v1/chat/completions"  # Replace with correct URL if necessary
+        self.client = Groq(api_key=api_key)
 
     def chat(self, model, messages):
-        payload = {
-            "model": model,
-            "messages": messages
-        }
-        headers = {
-            "accept": "application/json",
-            "content-type": "application/json",
-            "authorization": f"Bearer {self.api_key}"
-        }
         try:
-            response = requests.post(self.url, json=payload, headers=headers)
-            response_data = response.json()
-            if response.status_code != 200 or "choices" not in response_data:
-                raise Exception(f"Error: {response_data.get('error', 'Unknown error')}")
-            return response_data
+            # Call the Groq API using chat.completions.create
+            chat_completion = self.client.chat.completions.create(
+                messages=messages,
+                model=model
+            )
+            # Extract response from Groq API
+            return chat_completion.choices[0].message.content.strip()
         except Exception as e:
             raise Exception(f"Error while calling Groq API: {str(e)}")
 
@@ -147,11 +140,12 @@ if user_input:
             )
             answer = response['choices'][0]['message']['content'].strip()
         elif model_choice == "Groq (Gemma-2-9B-IT)":
+            # Using updated GroqClient
             response = GroqClient(api_key=groq_api_key).chat(
                 model="gemma-2-9b-it",  # Specify the correct model name if different
                 messages=st.session_state.current_chat
             )
-            answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
+            answer = response  # Directly getting the answer from GroqClient
         
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
         st.experimental_rerun()  # Rerun to update chat dynamically
