@@ -148,8 +148,6 @@ if user_input:
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
         save_chat_history(st.session_state.chat_history)
 
-        st.experimental_rerun()  # Force Streamlit to rerun and update UI
-
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
 
@@ -165,4 +163,4 @@ with st.expander("Chat History"):
             if st.button(f"Delete Conversation {i + 1}", key=f"delete_{i}"):
                 del st.session_state.chat_history[i]
                 save_chat_history(st.session_state.chat_history)
-                st.experimental_rerun()
+                st.experimental_rerun()  # Force Streamlit to rerun and update UI
