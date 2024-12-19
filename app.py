@@ -157,8 +157,8 @@ if pdf_file is not None:
                 st.write("Raw response from Together API:", response)
 
                 # Adjust based on the actual response format from Together API
-                if 'response' in response:
-                    answer = response['response'].strip()
+                if 'choices' in response and len(response['choices']) > 0:
+                    answer = response['choices'][0]['message']['content'].strip()
                 else:
                     st.error(f"Unexpected response format: {response}")
                     answer = "Sorry, I couldn't get a response from the model."
