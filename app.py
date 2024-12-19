@@ -143,6 +143,9 @@ if pdf_file is not None:
                     max_tokens=300  # Reduce output size to fit within token limits
                 )
 
+                # Extract the answer from the Sambanova response
+                answer = response['choices'][0]['message']['content'].strip()
+
             elif model_choice == "Together (Wizard LM-2 8x22b)":
                 # Call the Wizard LM-2 (8x22b) model to generate a response
                 response = together_client.chat(
@@ -150,8 +153,16 @@ if pdf_file is not None:
                     messages=st.session_state.chat_history
                 )
 
-            # Extract and display the response
-            answer = response['choices'][0]['message']['content'].strip() if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)" else response['response'].strip()
+                # Debugging: print the raw response to check its structure
+                st.write("Raw response from Together API:", response)
+
+                # Adjust based on the actual response format from Together API
+                if 'response' in response:
+                    answer = response['response'].strip()
+                else:
+                    st.error(f"Unexpected response format: {response}")
+                    answer = "Sorry, I couldn't get a response from the model."
+
             st.session_state.chat_history.append({"role": "assistant", "content": answer})
 
         except Exception as e:
