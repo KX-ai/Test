@@ -1,25 +1,19 @@
 import os
 import openai
 import requests
+import PyPDF2
 import streamlit as st
 import json
-import time
-import fitz  # PyMuPDF
-import tempfile
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
 
-# Maximum context length for DeepSeek
-MAX_CONTEXT_LENGTH = 4096
-
-# Define a safe buffer for max completion tokens
-MAX_COMPLETION_TOKENS = 300
-SAFE_CONTEXT_LENGTH = MAX_CONTEXT_LENGTH - MAX_COMPLETION_TOKENS
+# Maximum context length for Sambanova
+MAX_CONTEXT_LENGTH = 8192
 
 # Use the Sambanova API for Qwen 2.5-72B-Instruct
 class SambanovaClient:
-    def __init__(self, api_key, base_url):
+    def _init_(self, api_key, base_url):
         self.api_key = api_key
         self.base_url = base_url
         openai.api_key = self.api_key
@@ -38,12 +32,11 @@ class SambanovaClient:
         except Exception as e:
             raise Exception(f"Error while calling Sambanova API: {str(e)}")
 
-# Use the DeepSeek API for DeepSeek LLM Chat (67B)
-class DeepSeekClient:
-    def __init__(self, api_key):
+# Use the Together API for Wizard LM-2 (8x22b)
+class TogetherClient:
+    def _init_(self, api_key):
         self.api_key = api_key
         self.url = "https://api.together.xyz/v1/chat/completions"
-        self.rate_limit_retry_delay = 1  # Retry delay in seconds for rate-limiting errors
 
     def chat(self, model, messages):
         payload = {
@@ -55,44 +48,23 @@ class DeepSeekClient:
             "content-type": "application/json",
             "authorization": f"Bearer {self.api_key}"
         }
+        try:
+            response = requests.post(self.url, json=payload, headers=headers)
+            response_data = response.json()
+            if response.status_code != 200 or "choices" not in response_data:
+                raise Exception(f"Error: {response_data.get('error', 'Unknown error')}")
+            return response_data
+        except Exception as e:
+            raise Exception(f"Error while calling Together API: {str(e)}")
 
-        # Retry logic for rate-limiting errors
-        for attempt in range(5):  # Retry up to 5 times
-            try:
-                response = requests.post(self.url, json=payload, headers=headers)
-                response_data = response.json()
-
-                if response.status_code == 429:  # Rate limit error
-                    time.sleep(self.rate_limit_retry_delay)
-                    continue
-
-                if response.status_code != 200 or "choices" not in response_data:
-                    raise Exception(f"Error: {response_data.get('error', 'Unknown error')}")
-                return response_data
-
-            except Exception as e:
-                if attempt == 4:  # Final attempt failed
-                    raise Exception(f"Error while calling DeepSeek API: {str(e)}")
-                time.sleep(self.rate_limit_retry_delay)
-
-# Function to extract text from PDF using PyMuPDF
+# Function to extract text from PDF using PyPDF2
 @st.cache_data
 def extract_text_from_pdf(pdf_file):
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        temp_file.write(pdf_file.read())  
-        temp_file_path = temp_file.name
-
-    doc = fitz.open(temp_file_path)
+    reader = PyPDF2.PdfReader(pdf_file)
     text = ""
-    for page_num in range(len(doc)):  
-        page = doc.load_page(page_num)  
-        text += page.get_text()  
-    os.remove(temp_file_path)  
+    for page in reader.pages:
+        text += page.extract_text()
     return text
-
-# Function to truncate text for token limit
-def truncate_text(text, max_length):
-    return text[:max_length]
 
 # Function to load chat history from a JSON file
 def load_chat_history():
@@ -107,26 +79,9 @@ def save_chat_history(history):
     with open(CHAT_HISTORY_FILE, "w") as file:
         json.dump(history, file, indent=4)
 
-# Function to manage token limit for messages
-def truncate_chat_history(chat_history, pdf_context, max_length):
-    total_length = len(pdf_context)
-    truncated_history = []
-
-    # Add PDF context to the chat history
-    if pdf_context:
-        truncated_history.append({"role": "system", "content": pdf_context})
-        total_length += len(pdf_context)
-
-    # Add the previous conversation messages to the history
-    for message in reversed(chat_history):
-        if message and "content" in message:  # Check for None and ensure message has 'content'
-            message_text = message["content"]
-            total_length += len(message_text)
-            if total_length > max_length:
-                break
-            truncated_history.insert(0, message)
-    
-    return truncated_history
+# Function to truncate text if it's too long
+def truncate_text(text, max_length=MAX_CONTEXT_LENGTH):
+    return text[:max_length]
 
 # Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
@@ -134,11 +89,6 @@ st.title("Botify")
 
 # Upload a PDF file
 pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
-
-# Display success message once the PDF is uploaded and processed
-if pdf_file:
-    text_content = extract_text_from_pdf(pdf_file)
-    st.success("PDF text extracted successfully.")
 
 # Initialize session state for chat
 if "chat_history" not in st.session_state:
@@ -148,78 +98,89 @@ if "chat_history" not in st.session_state:
 # Button to start a new chat
 if st.button("Start New Chat"):
     st.session_state.current_chat = [{"role": "assistant", "content": "Hello! Starting a new conversation. How can I assist you today?"}]
-    st.session_state.chat_history = []
-    st.session_state.pdf_file = None
-    save_chat_history(st.session_state.chat_history)
+    st.session_state.chat_history.append(st.session_state.current_chat)
     st.success("New chat started!")
+
+# Display chat dynamically
+st.write("### Chat Conversation")
+for msg in st.session_state.current_chat:
+    if isinstance(msg, dict) and "role" in msg and "content" in msg:
+        if msg["role"] == "user":
+            st.markdown(f"*\U0001F9D1 User:* {msg['content']}")
+        elif msg["role"] == "assistant":
+            st.markdown(f"*\U0001F916 Botify:* {msg['content']}")
+    else:
+        st.error("Error: A message is missing or malformed in the chat history.")
 
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
-deepseek_api_key = st.secrets["general"]["DEEPSEEK_API_KEY"]
+together_api_key = "db476cc81d29116da9b75433badfe89666552a25d2cd8efd6cb5a0c916eb8f50"
 
 # Model selection
-model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "DeepSeek LLM Chat (67B)"])
+model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Wizard LM-2 8x22b)"])
 
-# Flag to check if user has entered input before generating responses
-user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
+# Input message (via Enter key)
+user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
-# Notify user if model selection is changed and they should enter a new message
-if st.session_state.get("model_selected", "") != model_choice:
-    st.session_state.model_selected = model_choice
-    st.warning("Please enter a new message to get a response from the selected model.")
-
-# Only proceed if the user input is not empty and has pressed Enter
 if user_input:
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
-    # Prepare the prompt based on uploaded PDF content
     if pdf_file:
-        truncated_text = truncate_text(text_content, SAFE_CONTEXT_LENGTH // 2)  # Limit PDF context size
+        text_content = extract_text_from_pdf(pdf_file)
+        truncated_text = truncate_text(text_content)
+        prompt_text = f"Document content:\n{truncated_text}\n\nUser question: {user_input}\nAnswer:"
     else:
-        truncated_text = ""
+        prompt_text = f"User question: {user_input}\nAnswer:"
 
-    # Truncate chat history to fit token limits, including the PDF content
-    truncated_history = truncate_chat_history(st.session_state.chat_history, truncated_text, SAFE_CONTEXT_LENGTH)
+    st.session_state.current_chat.append({"role": "system", "content": prompt_text})
 
     try:
         if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
-            sambanova_client = SambanovaClient(
+            response = SambanovaClient(
                 api_key=sambanova_api_key,
                 base_url="https://api.sambanova.ai/v1"
-            )
-            response = sambanova_client.chat(
+            ).chat(
                 model="Qwen2.5-72B-Instruct",
-                messages=truncated_history + [{"role": "user", "content": user_input}],
+                messages=st.session_state.current_chat,
                 temperature=0.1,
                 top_p=0.1,
-                max_tokens=MAX_COMPLETION_TOKENS
+                max_tokens=300  # Reduced max tokens for the response
             )
             answer = response['choices'][0]['message']['content'].strip()
+        elif model_choice == "Together (Wizard LM-2 8x22b)":
+            # Check if the model is available
+            model_url = f"https://api.together.xyz/v1/models/{model_choice.replace(' ', '').lower()}"
+            model_response = requests.get(model_url, headers={"Authorization": f"Bearer {together_api_key}"})
+            if model_response.status_code != 200:
+                raise Exception("Model not available or invalid.")
 
-        elif model_choice == "DeepSeek LLM Chat (67B)":
-            deepseek_client = DeepSeekClient(api_key=deepseek_api_key)
-            response = deepseek_client.chat(
-                model="deepseek-ai/deepseek-llm-67b-chat",
-                messages=truncated_history + [{"role": "user", "content": user_input}, {"role": "system", "content": truncated_text}]
+            response = TogetherClient(api_key=together_api_key).chat(
+                model="wizardlm2-8x22b",
+                messages=st.session_state.current_chat
             )
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
-
-        # Append the assistant's response
+        
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
-        save_chat_history(st.session_state.chat_history)
-        st.experimental_rerun()
+        st.experimental_rerun()  # Rerun to update chat dynamically
 
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
-        if "rate limit" in str(e).lower():
-            st.warning("Rate limit exceeded. Please wait a moment and try again.")
 
-# Display chat history at the bottom
-st.write("### Chat History")
-for idx, conversation in enumerate(st.session_state.chat_history):
-    with st.expander(f"Conversation {idx + 1}"):
-        for msg in conversation:
-            if msg["role"] == "user":
-                st.markdown(f"*\U0001F9D1 User:* {msg['content']}")
-            elif msg["role"] == "assistant":
-                st.markdown(f"*\U0001F916 Botify:* {msg['content']}")
+# Save chat history
+save_chat_history(st.session_state.chat_history)
+
+# Display chat history with deletion option
+with st.expander("Chat History"):
+    for i, conversation in enumerate(st.session_state.chat_history):
+        with st.container():
+            st.write(f"*Conversation {i + 1}:*")
+            for msg in conversation:
+                if isinstance(msg, dict) and "role" in msg and "content" in msg:
+                    role = "User" if msg["role"] == "user" else "Botify"
+                    st.write(f"*{role}:* {msg['content']}")
+                else:
+                    st.error(f"Error: Malformed message in conversation {i + 1}.")
+            if st.button(f"Delete Conversation {i + 1}", key=f"delete_{i}"):
+                del st.session_state.chat_history[i]
+                save_chat_history(st.session_state.chat_history)
+                st.experimental_rerun()
