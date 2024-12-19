@@ -50,7 +50,10 @@ class TogetherClient:
         }
         try:
             response = requests.post(self.url, json=payload, headers=headers)
-            return response.json()
+            response_data = response.json()
+            if response.status_code != 200 or "choices" not in response_data:
+                raise Exception(f"Error: {response_data.get('error', 'Unknown error')}")
+            return response_data
         except Exception as e:
             raise Exception(f"Error while calling Together API: {str(e)}")
 
@@ -151,6 +154,7 @@ if user_input:
             )
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
+        st.experimental_rerun()  # Rerun to update chat dynamically
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
 
