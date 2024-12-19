@@ -100,7 +100,7 @@ if st.button("Start New Chat"):
 # Display chat dynamically
 st.write("### Chat Conversation")
 for msg in st.session_state.current_chat:
-    if msg:
+    if isinstance(msg, dict) and "role" in msg and "content" in msg:
         if msg["role"] == "user":
             st.markdown(f"**🧑 User:** {msg['content']}")
         elif msg["role"] == "assistant":
@@ -162,8 +162,8 @@ with st.expander("Chat History"):
     for i, conversation in enumerate(st.session_state.chat_history):
         st.write(f"**Conversation {i + 1}:**")
         for msg in conversation:
-            if msg:
+            if isinstance(msg, dict) and "role" in msg and "content" in msg:
                 role = "User" if msg["role"] == "user" else "Botify"
                 st.write(f"**{role}:** {msg['content']}")
             else:
-                st.error("Error: A message is missing or malformed.")
+                st.error(f"Error: Malformed message in conversation {i + 1}.")
