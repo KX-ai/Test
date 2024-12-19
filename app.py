@@ -115,6 +115,9 @@ if pdf_file is not None:
                 end_time = time.time()
                 st.info(f"API call duration: {end_time - start_time:.2f} seconds")
 
+            # Re-render the conversation with the new user and bot messages
+            st.experimental_rerun()
+
         # Display full chat history dynamically in a collapsible container
         with st.expander("Chat History"):
             for msg in st.session_state.chat_history:
