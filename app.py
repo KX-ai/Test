@@ -2,9 +2,10 @@ import os
 import openai
 import requests
 import PyPDF2
+import fitz  # PyMuPDF for better PDF extraction
 import streamlit as st
 import json
-import time  # Import time for rate-limiting retries
+import time
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -74,13 +75,15 @@ class DeepSeekClient:
                     raise Exception(f"Error while calling DeepSeek API: {str(e)}")
                 time.sleep(self.rate_limit_retry_delay)
 
-# Function to extract text from PDF using PyPDF2
+# Function to extract text from PDF using PyMuPDF (fitz) for better quality
 @st.cache_data
 def extract_text_from_pdf(pdf_file):
-    reader = PyPDF2.PdfReader(pdf_file)
+    # Use PyMuPDF for more accurate extraction
+    document = fitz.open(pdf_file)
     text = ""
-    for page in reader.pages:
-        text += page.extract_text()
+    for page_num in range(document.page_count):
+        page = document.load_page(page_num)
+        text += page.get_text("text")
     return text
 
 # Function to truncate text for token limit
@@ -146,17 +149,18 @@ deepseek_api_key = st.secrets["general"]["DEEPSEEK_API_KEY"]
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "DeepSeek LLM Chat (67B)"])
 
-# Input message
-user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter", height=150)
+# Use a form to allow "Enter" key to send the message
+with st.form(key="chat_form"):
+    user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter", height=150)
+    submit_button = st.form_submit_button("Send")
 
-# Simulate pressing "Enter" key to send the message
-if user_input:
+if submit_button:
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
     # Prepare the prompt based on uploaded PDF content
     if pdf_file:
         text_content = extract_text_from_pdf(pdf_file)
-        truncated_text = truncate_text(text_content, SAFE_CONTEXT_LENGTH // 2)  # Limit PDF context size
+        truncated_text = truncate_text(text_content, SAFE_CONTEXT_LENGTH)  # Use more content for context
     else:
         truncated_text = ""
 
