@@ -4,6 +4,10 @@ import requests
 import PyPDF2
 import streamlit as st
 import time
+import json
+
+# File path for saving chat history
+CHAT_HISTORY_FILE = "chat_history.json"
 
 # Use the Sambanova API for Qwen 2.5-72B-Instruct
 class SambanovaClient:
@@ -60,6 +64,21 @@ def extract_text_from_pdf(pdf_file):
     return text
 
 
+# Function to load chat history from a JSON file
+def load_chat_history():
+    if os.path.exists(CHAT_HISTORY_FILE):
+        with open(CHAT_HISTORY_FILE, "r") as file:
+            return json.load(file)
+    else:
+        return [{"role": "system", "content": "You are a helpful assistant named Botify."}]
+
+
+# Function to save chat history to a JSON file
+def save_chat_history(history):
+    with open(CHAT_HISTORY_FILE, "w") as file:
+        json.dump(history, file)
+
+
 # Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
 st.title("Chatbot with PDF Content (Botify)")
@@ -70,15 +89,14 @@ pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 
 # Initialize session state to store chat history
 if "chat_history" not in st.session_state:
-    # Adding the hello message only if chat history is not initialized
-    st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
-    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. What can I help you today?"})
+    st.session_state.chat_history = load_chat_history()
+    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. Upload a PDF and ask me questions."})
 
 # Button to start a new chat
 if st.button("Start New Chat"):
     # Clear the chat history to start fresh
     st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
-    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. What can I help you today?"})
+    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. Upload a PDF and ask me questions."})
     st.success("New chat started! Feel free to ask your question.")
 
 # Display the real-time chat conversation view
@@ -118,7 +136,7 @@ elif model_choice == "Together (Wizard LM-2 8x22b)":
 user_input = st.text_input(
     "Your message:", 
     key="user_input", 
-    placeholder="Type your message here and press Enter"
+    placeholder="Type your message here and press Enter or click Send..."
 )
 
 # Handle user input and send message
@@ -186,6 +204,9 @@ if user_input:
                     st.markdown(f"**🧑 User:** {msg['content']}")
                 elif msg["role"] == "assistant":
                     st.markdown(f"**🤖 Botify:** {msg['content']}")
+
+    # Save chat history to file
+    save_chat_history(st.session_state.chat_history)
 
 # Display full chat history dynamically in a collapsible container
 with st.expander("Chat History"):
