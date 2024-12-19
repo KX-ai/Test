@@ -61,7 +61,7 @@ if pdf_file is not None:
         if "chat_history" not in st.session_state:
             st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
 
-        # Display chat conversation dynamically
+        # Display the real-time chat conversation view
         st.write("### Chat Conversation")
         conversation_container = st.container()
 
@@ -115,7 +115,7 @@ if pdf_file is not None:
                 end_time = time.time()
                 st.info(f"API call duration: {end_time - start_time:.2f} seconds")
 
-        # Display chat history dynamically in a scrollable container
+        # Display full chat history dynamically in a collapsible container
         with st.expander("Chat History"):
             for msg in st.session_state.chat_history:
                 role = "User" if msg["role"] == "user" else "Botify"
