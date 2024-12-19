@@ -4,31 +4,16 @@ import requests
 import PyPDF2
 import streamlit as st
 import json
-from transformers import pipeline
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
 
-# Context lengths for models
-MAX_CONTEXT_LENGTH_SAMBANOVA = 8192
-MAX_CONTEXT_LENGTH_DEEPSEEK = 4096
+# Maximum context length for DeepSeek
+MAX_CONTEXT_LENGTH = 4096
 
-# Function to truncate text to a maximum length
-def truncate_text(text, max_length):
-    return text[:max_length]
-
-# Summarization using Hugging Face
-@st.cache_resource
-def get_summarizer():
-    return pipeline("summarization", model="facebook/bart-large-cnn")
-
-def summarize_text(text, max_length=1024):
-    summarizer = get_summarizer()
-    try:
-        summaries = summarizer(text, max_length=max_length, min_length=30, do_sample=False)
-        return summaries[0]['summary_text']
-    except Exception as e:
-        return f"Error during summarization: {e}"
+# Define a safe buffer for max completion tokens
+MAX_COMPLETION_TOKENS = 300
+SAFE_CONTEXT_LENGTH = MAX_CONTEXT_LENGTH - MAX_COMPLETION_TOKENS
 
 # Use the Sambanova API for Qwen 2.5-72B-Instruct
 class SambanovaClient:
@@ -55,7 +40,7 @@ class SambanovaClient:
 class DeepSeekClient:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.url = "https://api.together.xyz/v1/chat/completions"  # Update the API base URL if needed
+        self.url = "https://api.together.xyz/v1/chat/completions"
 
     def chat(self, model, messages):
         payload = {
@@ -85,6 +70,10 @@ def extract_text_from_pdf(pdf_file):
         text += page.extract_text()
     return text
 
+# Function to truncate text for token limit
+def truncate_text(text, max_length):
+    return text[:max_length]
+
 # Function to load chat history from a JSON file
 def load_chat_history():
     if os.path.exists(CHAT_HISTORY_FILE):
@@ -97,6 +86,19 @@ def load_chat_history():
 def save_chat_history(history):
     with open(CHAT_HISTORY_FILE, "w") as file:
         json.dump(history, file, indent=4)
+
+# Function to manage token limit for messages
+def truncate_chat_history(chat_history, pdf_context, max_length):
+    total_length = len(pdf_context)
+    truncated_history = []
+
+    for message in reversed(chat_history):
+        message_text = message["content"]
+        total_length += len(message_text)
+        if total_length > max_length:
+            break
+        truncated_history.insert(0, message)
+    return truncated_history
 
 # Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
@@ -131,24 +133,22 @@ deepseek_api_key = st.secrets["general"]["DEEPSEEK_API_KEY"]
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "DeepSeek LLM Chat (67B)"])
 
-# Input message (via Enter key)
+# Input message
 user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
 if user_input:
-    # Add user input to chat
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
     # Prepare the prompt based on uploaded PDF content
     if pdf_file:
         text_content = extract_text_from_pdf(pdf_file)
-        if len(text_content) > (MAX_CONTEXT_LENGTH_DEEPSEEK - len(user_input)):
-            text_content = summarize_text(text_content, max_length=1024)
-        truncated_text = truncate_text(text_content, MAX_CONTEXT_LENGTH_DEEPSEEK - len(user_input))
-        prompt_text = f"Document content:\n{truncated_text}\n\nUser question: {user_input}\nAnswer:"
+        truncated_text = truncate_text(text_content, SAFE_CONTEXT_LENGTH // 2)  # Limit PDF context size
     else:
-        prompt_text = f"User question: {user_input}\nAnswer:"
+        truncated_text = ""
 
-    # Call the selected model's API
+    # Truncate chat history to fit token limits
+    truncated_history = truncate_chat_history(st.session_state.current_chat, truncated_text, SAFE_CONTEXT_LENGTH)
+
     try:
         if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
             sambanova_client = SambanovaClient(
@@ -157,22 +157,23 @@ if user_input:
             )
             response = sambanova_client.chat(
                 model="Qwen2.5-72B-Instruct",
-                messages=st.session_state.current_chat,
+                messages=truncated_history,
                 temperature=0.1,
                 top_p=0.1,
-                max_tokens=300
+                max_tokens=MAX_COMPLETION_TOKENS
             )
             answer = response['choices'][0]['message']['content'].strip()
         elif model_choice == "DeepSeek LLM Chat (67B)":
             deepseek_client = DeepSeekClient(api_key=deepseek_api_key)
             response = deepseek_client.chat(
                 model="deepseek-ai/deepseek-llm-67b-chat",
-                messages=st.session_state.current_chat
+                messages=truncated_history
             )
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
-        
-        # Append assistant's response
+
+        # Append the assistant's response
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
+        save_chat_history(st.session_state.chat_history)
         st.experimental_rerun()
 
     except Exception as e:
@@ -180,16 +181,3 @@ if user_input:
 
 # Save chat history
 save_chat_history(st.session_state.chat_history)
-
-# Display chat history with deletion option
-with st.expander("Chat History"):
-    for i, conversation in enumerate(st.session_state.chat_history):
-        with st.container():
-            st.write(f"*Conversation {i + 1}:*")
-            for msg in conversation:
-                role = "User" if msg["role"] == "user" else "Botify"
-                st.write(f"*{role}:* {msg['content']}")
-            if st.button(f"Delete Conversation {i + 1}", key=f"delete_{i}"):
-                del st.session_state.chat_history[i]
-                save_chat_history(st.session_state.chat_history)
-                st.experimental_rerun()
