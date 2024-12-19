@@ -4,7 +4,7 @@ import requests
 import streamlit as st
 import json
 import time
-import fitz  # PyMuPDF (corrected import)
+import fitz  # PyMuPDF
 import tempfile
 
 # File path for saving chat history
@@ -75,7 +75,7 @@ class DeepSeekClient:
                     raise Exception(f"Error while calling DeepSeek API: {str(e)}")
                 time.sleep(self.rate_limit_retry_delay)
 
-# Function to extract text from PDF using PyMuPDF (corrected import)
+# Function to extract text from PDF using PyMuPDF
 @st.cache_data
 def extract_text_from_pdf(pdf_file):
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -145,10 +145,6 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = load_chat_history()
     st.session_state.current_chat = [{"role": "assistant", "content": "Hello! I am Botify, your assistant. How can I assist you today?"}]
 
-# Display the hello message at the start
-if not st.session_state.chat_history:
-    st.session_state.chat_history.append(st.session_state.current_chat)
-
 # Button to start a new chat
 if st.button("Start New Chat"):
     st.session_state.current_chat = [{"role": "assistant", "content": "Hello! Starting a new conversation. How can I assist you today?"}]
@@ -156,28 +152,6 @@ if st.button("Start New Chat"):
     st.session_state.pdf_file = None
     save_chat_history(st.session_state.chat_history)
     st.success("New chat started!")
-
-# Button to delete a specific conversation
-def delete_conversation(idx):
-    if len(st.session_state.chat_history) > idx:
-        st.session_state.chat_history.pop(idx)
-        save_chat_history(st.session_state.chat_history)
-        st.experimental_rerun()
-
-# Display chat history with dropdown for each conversation
-st.write("### Chat History")
-conversation_choice = st.selectbox("Choose a conversation to view:", range(len(st.session_state.chat_history)), format_func=lambda x: f"Conversation {x + 1}")
-selected_conversation = st.session_state.chat_history[conversation_choice]
-
-with st.expander(f"Conversation {conversation_choice + 1}"):
-    for msg in selected_conversation:
-        if msg["role"] == "user":
-            st.markdown(f"*\U0001F9D1 User:* {msg['content']}")
-        elif msg["role"] == "assistant":
-            st.markdown(f"*\U0001F916 Botify:* {msg['content']}")
-    delete_button = st.button(f"Delete Conversation {conversation_choice + 1}", key=f"delete_{conversation_choice}")
-    if delete_button:
-        delete_conversation(conversation_choice)
 
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
@@ -226,7 +200,7 @@ if user_input:
             deepseek_client = DeepSeekClient(api_key=deepseek_api_key)
             response = deepseek_client.chat(
                 model="deepseek-ai/deepseek-llm-67b-chat",
-                messages=truncated_history + [{"role": "user", "content": user_input}]
+                messages=truncated_history + [{"role": "user", "content": user_input}, {"role": "system", "content": truncated_text}]
             )
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
 
@@ -240,5 +214,12 @@ if user_input:
         if "rate limit" in str(e).lower():
             st.warning("Rate limit exceeded. Please wait a moment and try again.")
 
-# Save chat history
-save_chat_history(st.session_state.chat_history)
+# Display chat history at the bottom
+st.write("### Chat History")
+for idx, conversation in enumerate(st.session_state.chat_history):
+    with st.expander(f"Conversation {idx + 1}"):
+        for msg in conversation:
+            if msg["role"] == "user":
+                st.markdown(f"*\U0001F9D1 User:* {msg['content']}")
+            elif msg["role"] == "assistant":
+                st.markdown(f"*\U0001F916 Botify:* {msg['content']}")
