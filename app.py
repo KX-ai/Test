@@ -1,10 +1,10 @@
 import os
 import openai
 import requests
-import PyMuPDF  # PyMuPDF for better PDF extraction
 import streamlit as st
 import json
-import time
+import time  # Import time for rate-limiting retries
+import PyMuPDF  # Import PyMuPDF for better PDF extraction
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -74,15 +74,14 @@ class DeepSeekClient:
                     raise Exception(f"Error while calling DeepSeek API: {str(e)}")
                 time.sleep(self.rate_limit_retry_delay)
 
-# Function to extract text from PDF using PyMuPDF (fitz) for better quality
+# Function to extract text from PDF using PyMuPDF (instead of fitz or PyPDF2)
 @st.cache_data
 def extract_text_from_pdf(pdf_file):
-    # Use PyMuPDF for more accurate extraction
-    document = fitz.open(pdf_file)
+    doc = PyMuPDF.open(pdf_file)  # Open the PDF file
     text = ""
-    for page_num in range(document.page_count):
-        page = document.load_page(page_num)
-        text += page.get_text("text")
+    for page_num in range(len(doc)):  # Iterate over pages
+        page = doc.load_page(page_num)  # Load each page
+        text += page.get_text()  # Extract text from each page
     return text
 
 # Function to truncate text for token limit
@@ -159,7 +158,7 @@ if submit_button:
     # Prepare the prompt based on uploaded PDF content
     if pdf_file:
         text_content = extract_text_from_pdf(pdf_file)
-        truncated_text = truncate_text(text_content, SAFE_CONTEXT_LENGTH)  # Use more content for context
+        truncated_text = truncate_text(text_content, SAFE_CONTEXT_LENGTH // 2)  # Limit PDF context size
     else:
         truncated_text = ""
 
