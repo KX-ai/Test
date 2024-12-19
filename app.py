@@ -3,7 +3,6 @@ import openai
 import requests
 import PyPDF2
 import streamlit as st
-import time
 import json
 
 # File path for saving chat history
@@ -115,15 +114,16 @@ together_api_key = "db476cc81d29116da9b75433badfe89666552a25d2cd8efd6cb5a0c916eb
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Wizard LM-2 8x22b)"])
 
-# Prompt user for input if model is switched
-if "previous_model_choice" in st.session_state and st.session_state.previous_model_choice != model_choice:
-    st.warning("Model changed! Please type your next message to continue.")
-st.session_state.previous_model_choice = model_choice
+# Prompt user for input
+with st.form(key="user_input_form"):
+    user_input = st.text_input(
+        "Your message:",
+        key="user_input",
+        placeholder="Type your message here and press Enter"
+    )
+    submit_button = st.form_submit_button(label="Send")
 
-# Wait for user input
-user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
-
-if user_input:
+if submit_button and user_input:
     st.session_state.current_chat.append({"role": "user", "content": user_input})
     
     if pdf_file:
