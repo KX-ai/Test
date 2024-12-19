@@ -90,13 +90,13 @@ pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 # Initialize session state to store chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = load_chat_history()
-    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. Upload a PDF and ask me questions."})
+    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. What can I help you today?"})
 
 # Button to start a new chat
 if st.button("Start New Chat"):
     # Clear the chat history to start fresh
     st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
-    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. Upload a PDF and ask me questions."})
+    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. What can I help you today?"})
     st.success("New chat started! Feel free to ask your question.")
 
 # Display the real-time chat conversation view
@@ -136,7 +136,7 @@ elif model_choice == "Together (Wizard LM-2 8x22b)":
 user_input = st.text_input(
     "Your message:", 
     key="user_input", 
-    placeholder="Type your message here and press Enter or click Send..."
+    placeholder="Type your message here and press Enter"
 )
 
 # Handle user input and send message
