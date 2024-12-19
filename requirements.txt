@@ -3,7 +3,8 @@ openai==0.27.0
 PyPDF2==2.11.2
 altair==4.2.0
 requests==2.28.2
-together==0.1.0  # Add Together AI for Typhoon 1.5x 70B AWQ integration
+together==0.1.9  # Updated version for Together AI integration
+
 
 
 
