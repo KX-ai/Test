@@ -33,7 +33,7 @@ class SambanovaClient:
         except Exception as e:
             raise Exception(f"Error while calling Sambanova API: {str(e)}")
 
-# Together AI Client (Typhoon 1.5x 70B AWQ Model)
+# Together AI Client (DeepSeek LLM Chat 67B Model)
 class TogetherClient:
     def __init__(self):
         self.client = TogetherClient()  # Initialize Together client
@@ -103,7 +103,7 @@ for msg in st.session_state.current_chat:
             st.markdown(f"**\U0001F916 Botify:** {msg['content']}")
 
 # Model selection
-model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together AI (Typhoon1.5x 70B AWQ)"])
+model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together AI (DeepSeek LLM Chat 67B)"])
 
 # Input message
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
@@ -134,9 +134,9 @@ if user_input:
                 max_tokens=1000  # Increased max_tokens for longer responses
             )
             answer = response['choices'][0]['message']['content'].strip()
-        elif model_choice == "Together AI (Typhoon1.5x 70B AWQ)":
+        elif model_choice == "Together AI (DeepSeek LLM Chat 67B)":
             response = TogetherClient().chat(
-                model="typhoon1.5x-70b-awq",  # Specify the correct Together model name
+                model="deepseek-llm-chat-67b",  # Updated model name
                 messages=st.session_state.current_chat
             )
             answer = response
