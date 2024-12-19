@@ -33,7 +33,7 @@ def extract_text_from_pdf(pdf_file):
     return text
 
 # Streamlit UI
-st.title("Chatbot with PDF Content")
+st.title("Chatbot with PDF Content (Botify)")
 st.write("Upload a PDF file and ask questions about its content.")
 
 # File upload
@@ -56,18 +56,17 @@ if pdf_file is not None:
 
         # Initialize session state to store chat history
         if "chat_history" not in st.session_state:
-            st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant."}]
+            st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
 
-        # Text input for the user's question
-        user_input = st.text_input("Ask a question about the document:", key="user_input")
+        # Temporary variable for user input to avoid modifying session_state directly
+        temp_user_input = st.text_input("Ask a question about the document:", key="user_input")
 
-        # Check if user provided input
-        if user_input:
+        if temp_user_input:
             # Add user input to chat history
-            st.session_state.chat_history.append({"role": "user", "content": user_input})
+            st.session_state.chat_history.append({"role": "user", "content": temp_user_input})
 
             # Create prompt for the model using the extracted text (limit size)
-            prompt_text = f"Document content (truncated): {text_content[:1000]}...\n\nUser question: {user_input}\nAnswer:"
+            prompt_text = f"Document content (truncated): {text_content[:1000]}...\n\nUser question: {temp_user_input}\nAnswer:"
 
             try:
                 # Call the Qwen2.5-72B-Instruct model to generate a response
@@ -82,10 +81,10 @@ if pdf_file is not None:
                 # Extract and display the response
                 answer = response['choices'][0]['message']['content'].strip()
                 st.session_state.chat_history.append({"role": "assistant", "content": answer})
-                st.write(f"Qwen 2.5: {answer}")
+                st.write(f"Botify: {answer}")
 
-                # Clear the input box for the next question
-                st.session_state.user_input = ""  # Reset input field
+                # Clear the temporary input (reset functionality)
+                st.experimental_rerun()
 
             except Exception as e:
                 st.error(f"Error occurred while fetching response: {str(e)}")
@@ -93,5 +92,5 @@ if pdf_file is not None:
         # Display the chat history
         with st.expander("Chat History"):
             for msg in st.session_state.chat_history:
-                role = "User" if msg["role"] == "user" else "Assistant"
+                role = "User" if msg["role"] == "user" else "Botify"
                 st.write(f"**{role}:** {msg['content']}")
