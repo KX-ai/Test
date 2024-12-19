@@ -70,7 +70,9 @@ pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 
 # Initialize session state to store chat history
 if "chat_history" not in st.session_state:
+    # Adding the hello message only if chat history is not initialized
     st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
+    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. Upload a PDF and ask me questions."})
 
 # Display the real-time chat conversation view
 st.write("### Chat Conversation")
@@ -104,10 +106,6 @@ if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
 
 elif model_choice == "Together (Wizard LM-2 8x22b)":
     together_client = TogetherClient(api_key=together_api_key)
-
-# Display a hello message before allowing user input
-if not st.session_state.chat_history:
-    st.session_state.chat_history.append({"role": "assistant", "content": "Hello! I am Botify, your assistant. Upload a PDF and ask me questions."})
 
 # User input and "Send" button
 user_input = st.text_input(
