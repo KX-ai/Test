@@ -144,13 +144,22 @@ if st.button("Start New Chat"):
     st.session_state.chat_history.append(st.session_state.current_chat)
     st.success("New chat started!")
 
-# Display chat dynamically
-st.write("### Chat Conversation")
-for msg in st.session_state.current_chat:
-    if msg["role"] == "user":
-        st.markdown(f"*\U0001F9D1 User:* {msg['content']}")
-    elif msg["role"] == "assistant":
-        st.markdown(f"*\U0001F916 Botify:* {msg['content']}")
+# Button to delete a conversation
+if st.button("Delete Conversation"):
+    if len(st.session_state.chat_history) > 0:
+        st.session_state.chat_history.pop()
+        st.success("Last conversation deleted!")
+
+# Display chat history
+st.write("### Chat History")
+for idx, conversation in enumerate(st.session_state.chat_history):
+    st.write(f"**Conversation {idx + 1}:**")
+    for msg in conversation:
+        if msg["role"] == "user":
+            st.markdown(f"*\U0001F9D1 User:* {msg['content']}")
+        elif msg["role"] == "assistant":
+            st.markdown(f"*\U0001F916 Botify:* {msg['content']}")
+    st.write("\n")
 
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
