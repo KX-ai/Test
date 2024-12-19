@@ -36,7 +36,7 @@ class SambanovaClient:
 class DeepSeekClient:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.url = "https://api.together.xyz/v1/chat/completions"  # Make sure to check if DeepSeek has a different API base URL
+        self.url = "https://api.together.xyz/v1/chat/completions"
 
     def chat(self, model, messages):
         payload = {
@@ -119,7 +119,7 @@ deepseek_api_key = st.secrets["general"]["DEEPSEEK_API_KEY"]
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "DeepSeek LLM Chat (67B)"])
 
-# Input message (via Enter key)
+# Input message
 user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
 if user_input:
@@ -131,11 +131,8 @@ if user_input:
         if pdf_file:
             text_content = extract_text_from_pdf(pdf_file)
             truncated_text = truncate_text(text_content)
-            prompt_text = f"Document content:\n{truncated_text}\n\nUser question: {user_input}\nAnswer:"
-        else:
-            prompt_text = f"User question: {user_input}\nAnswer:"
+            st.session_state.current_chat.append({"role": "system", "content": f"Document context:\n{truncated_text}"})
 
-        # Call the selected model's API
         try:
             if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
                 sambanova_client = SambanovaClient(
@@ -157,9 +154,10 @@ if user_input:
                     messages=st.session_state.current_chat
                 )
                 answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
-            
+
             # Append the assistant's response
             st.session_state.current_chat.append({"role": "assistant", "content": answer})
+            save_chat_history(st.session_state.chat_history)
             st.experimental_rerun()
 
         except Exception as e:
