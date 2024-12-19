@@ -4,7 +4,7 @@ import requests
 import json
 import streamlit as st
 import PyPDF2
-from together import Together  # Assuming 'Together' is the correct class for the Together API
+from together import Together  # Correct import for the Together API
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -36,22 +36,16 @@ class SambanovaClient:
 # Together AI Client (Typhoon 1.5x 70B AWQ Model)
 class TogetherClient:
     def __init__(self):
-        # Fetch the Together API key securely from Streamlit secrets
-        self.api_key = st.secrets["general"]["TOGETHER_API_KEY"]
-        self.client = Together(api_key=self.api_key)  # Initialize Together client with the API key
+        self.client = Together()  # Initialize Together client
 
     def chat(self, model, messages):
         try:
             # Stream chat completions using Together API
-            stream = self.client.chat.completions.create(
+            completion = self.client.chat.completions.create(
                 model=model,
-                messages=messages,
-                stream=True,
+                messages=messages
             )
-            response = ""
-            for chunk in stream:
-                response += chunk.choices[0].delta.content or ""
-            return response.strip()
+            return completion['choices'][0]['message']['content'].strip()
         except Exception as e:
             raise Exception(f"Error while calling Together AI API: {str(e)}")
 
