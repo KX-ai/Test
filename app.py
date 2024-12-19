@@ -13,7 +13,7 @@ MAX_CONTEXT_LENGTH = 8192
 
 # Use the Sambanova API for Qwen 2.5-72B-Instruct
 class SambanovaClient:
-    def _init_(self, api_key, base_url):
+    def __init__(self, api_key, base_url):
         self.api_key = api_key
         self.base_url = base_url
         openai.api_key = self.api_key
@@ -34,7 +34,7 @@ class SambanovaClient:
 
 # Use the Together API for Wizard LM-2 (8x22b)
 class TogetherClient:
-    def _init_(self, api_key):
+    def __init__(self, api_key):
         self.api_key = api_key
         self.url = "https://api.together.xyz/v1/chat/completions"
 
@@ -114,7 +114,7 @@ for msg in st.session_state.current_chat:
 
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
-together_api_key = "db476cc81d29116da9b75433badfe89666552a25d2cd8efd6cb5a0c916eb8f50"
+together_api_key = st.secrets["general"]["TOGETHER_API_KEY"]
 
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Wizard LM-2 8x22b)"])
@@ -138,26 +138,28 @@ if user_input:
 
     try:
         if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
-            response = SambanovaClient(
+            sambanova_client = SambanovaClient(
                 api_key=sambanova_api_key,
                 base_url="https://api.sambanova.ai/v1"
-            ).chat(
+            )
+            response = sambanova_client.chat(
                 model="Qwen2.5-72B-Instruct",
                 messages=st.session_state.current_chat,
                 temperature=0.1,
                 top_p=0.1,
-                max_tokens=300  # Reduced max tokens for the response
+                max_tokens=300
             )
             answer = response['choices'][0]['message']['content'].strip()
         elif model_choice == "Together (Wizard LM-2 8x22b)":
-            response = TogetherClient(api_key=together_api_key).chat(
-                model="wizardlm2-8x22b",  # Specify the model name explicitly
+            together_client = TogetherClient(api_key=together_api_key)
+            response = together_client.chat(
+                model="wizardlm2-8x22b",
                 messages=st.session_state.current_chat
             )
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
         
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
-        st.experimental_rerun()  # Rerun to update chat dynamically
+        st.experimental_rerun()
 
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
