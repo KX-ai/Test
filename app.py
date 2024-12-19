@@ -64,12 +64,16 @@ if pdf_file is not None:
         # Display the real-time chat conversation view
         st.write("### Chat Conversation")
 
+        # Placeholder for the conversation, to be updated dynamically
+        conversation_placeholder = st.empty()
+
         # Display the conversation dynamically
-        for msg in st.session_state.chat_history:
-            if msg["role"] == "user":
-                st.markdown(f"**🧑 User:** {msg['content']}")
-            elif msg["role"] == "assistant":
-                st.markdown(f"**🤖 Botify:** {msg['content']}")
+        with conversation_placeholder.container():
+            for msg in st.session_state.chat_history:
+                if msg["role"] == "user":
+                    st.markdown(f"**🧑 User:** {msg['content']}")
+                elif msg["role"] == "assistant":
+                    st.markdown(f"**🤖 Botify:** {msg['content']}")
 
         # User input and "Send" button
         user_input = st.text_input(
