@@ -34,11 +34,11 @@ def extract_text_from_pdf(pdf_file):
         text += page.extract_text()
     return text
 
-# Streamlit UI
+# Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
 st.title("Chatbot with PDF Content (Botify)")
 
-# Upload a PDF
+# Upload a PDF file
 st.write("Upload a PDF file and interact with the chatbot to ask questions.")
 pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 
@@ -61,12 +61,12 @@ if pdf_file is not None:
         if "chat_history" not in st.session_state:
             st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
 
-        # Display the chat conversation
+        # Display chat conversation dynamically
         st.write("### Chat Conversation")
-        chat_container = st.container()
+        conversation_container = st.container()
 
-        # Display chat history dynamically
-        with chat_container:
+        # Display the conversation dynamically
+        with conversation_container:
             for msg in st.session_state.chat_history:
                 if msg["role"] == "user":
                     st.markdown(f"**🧑 User:** {msg['content']}")
@@ -80,7 +80,7 @@ if pdf_file is not None:
             placeholder="Type your message here and press Enter or click Send..."
         )
 
-        # Check if Enter was pressed by checking for a change in user_input
+        # Handle user input and send message
         if user_input:
             # Add user input to chat history
             st.session_state.chat_history.append({"role": "user", "content": user_input})
