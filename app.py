@@ -4,7 +4,7 @@ import requests
 import json
 import streamlit as st
 import PyPDF2
-from together import Together  # Correct import for the Together API
+from together import TogetherClient  # Correct import for Together API
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -36,7 +36,7 @@ class SambanovaClient:
 # Together AI Client (Typhoon 1.5x 70B AWQ Model)
 class TogetherClient:
     def __init__(self):
-        self.client = Together()  # Initialize Together client
+        self.client = TogetherClient()  # Initialize Together client
 
     def chat(self, model, messages):
         try:
