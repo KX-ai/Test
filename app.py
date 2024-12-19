@@ -153,10 +153,7 @@ if pdf_file is not None:
                     messages=st.session_state.chat_history
                 )
 
-                # Debugging: print the raw response to check its structure
-                st.write("Raw response from Together API:", response)
-
-                # Adjust based on the actual response format from Together API
+                # Handle response from Together API (no raw response output)
                 if 'choices' in response and len(response['choices']) > 0:
                     answer = response['choices'][0]['message']['content'].strip()
                 else:
