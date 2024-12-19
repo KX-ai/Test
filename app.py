@@ -36,6 +36,7 @@ class SambanovaClient:
 # Groq API Client (Gemma Model)
 class GroqClient:
     def __init__(self, api_key):
+        # Remove 'proxies' or any other invalid argument
         self.client = Groq(api_key=api_key)
 
     def chat(self, model, messages):
@@ -148,13 +149,11 @@ if user_input:
             answer = response  # Directly getting the answer from GroqClient
         
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
-        st.experimental_rerun()  # Rerun to update chat dynamically
+        # Avoid automatic rerun here; just append the new message to the state
+        save_chat_history(st.session_state.chat_history)
 
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
-
-# Save chat history
-save_chat_history(st.session_state.chat_history)
 
 # Display chat history with deletion option
 with st.expander("Chat History"):
