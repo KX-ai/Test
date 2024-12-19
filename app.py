@@ -20,7 +20,7 @@ class SambanovaClient:
         openai.api_key = self.api_key
         openai.api_base = self.base_url
 
-    def chat(self, model, messages, temperature=0.7, top_p=1.0, max_tokens=500):
+    def chat(self, model, messages, temperature=0.7, top_p=1.0, max_tokens=1000):  # Increased max_tokens
         try:
             response = openai.ChatCompletion.create(
                 model=model,
@@ -36,17 +36,14 @@ class SambanovaClient:
 # Groq API Client (Gemma Model)
 class GroqClient:
     def __init__(self, api_key):
-        # Remove 'proxies' or any other invalid argument
-        self.client = Groq(api_key=api_key)
+        self.client = Groq(api_key=api_key)  # Simplified initialization
 
     def chat(self, model, messages):
         try:
-            # Call the Groq API using chat.completions.create
             chat_completion = self.client.chat.completions.create(
                 messages=messages,
                 model=model
             )
-            # Extract response from Groq API
             return chat_completion.choices[0].message.content.strip()
         except Exception as e:
             raise Exception(f"Error while calling Groq API: {str(e)}")
@@ -137,7 +134,7 @@ if user_input:
                 messages=st.session_state.current_chat,
                 temperature=0.1,
                 top_p=0.1,
-                max_tokens=300
+                max_tokens=1000  # Increased max_tokens for longer responses
             )
             answer = response['choices'][0]['message']['content'].strip()
         elif model_choice == "Groq (Gemma-2-9B-IT)":
@@ -149,7 +146,6 @@ if user_input:
             answer = response  # Directly getting the answer from GroqClient
         
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
-        # Avoid automatic rerun here; just append the new message to the state
         save_chat_history(st.session_state.chat_history)
 
     except Exception as e:
