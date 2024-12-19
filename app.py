@@ -1,8 +1,7 @@
 import os
 import openai
 import requests
-import PyPDF2
-import fitz  # PyMuPDF for better PDF extraction
+import PyMuPDF  # PyMuPDF for better PDF extraction
 import streamlit as st
 import json
 import time
