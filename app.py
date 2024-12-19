@@ -139,7 +139,6 @@ if user_input:
             )
             answer = response['choices'][0]['message']['content'].strip()
         elif model_choice == "Groq (Gemma-2-9B-IT)":
-            # Using updated GroqClient
             response = GroqClient(api_key=groq_api_key).chat(
                 model="gemma-2-9b-it",  # Specify the correct model name if different
                 messages=st.session_state.current_chat
@@ -148,6 +147,9 @@ if user_input:
         
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
         save_chat_history(st.session_state.chat_history)
+
+        # Force Streamlit to rerun to update the UI
+        st.experimental_rerun()
 
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
