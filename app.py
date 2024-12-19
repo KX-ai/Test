@@ -32,7 +32,7 @@ class SambanovaClient:
         except Exception as e:
             raise Exception(f"Error while calling Sambanova API: {str(e)}")
 
-# Use the Together API for Wizard LM-2 (8x22b)
+# Use the Together API for WizardLM v1.2 (13B)
 class TogetherClient:
     def __init__(self, api_key):
         self.api_key = api_key
@@ -117,52 +117,53 @@ sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
 together_api_key = st.secrets["general"]["TOGETHER_API_KEY"]
 
 # Model selection
-model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Wizard LM-2 8x22b)"])
+model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (WizardLM v1.2 13B)"])
 
 # Input message (via Enter key)
 user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
 if user_input:
-    # Ensure the message isn't repeated before appending
-    if user_input != st.session_state.current_chat[-1]["content"]:
+    # Check if the last message is already the user's input to avoid duplication
+    if not (st.session_state.current_chat and st.session_state.current_chat[-1]["role"] == "user" and st.session_state.current_chat[-1]["content"] == user_input):
         st.session_state.current_chat.append({"role": "user", "content": user_input})
 
-    if pdf_file:
-        text_content = extract_text_from_pdf(pdf_file)
-        truncated_text = truncate_text(text_content)
-        prompt_text = f"Document content:\n{truncated_text}\n\nUser question: {user_input}\nAnswer:"
-    else:
-        prompt_text = f"User question: {user_input}\nAnswer:"
+        # Prepare the prompt based on uploaded PDF content
+        if pdf_file:
+            text_content = extract_text_from_pdf(pdf_file)
+            truncated_text = truncate_text(text_content)
+            prompt_text = f"Document content:\n{truncated_text}\n\nUser question: {user_input}\nAnswer:"
+        else:
+            prompt_text = f"User question: {user_input}\nAnswer:"
 
-    st.session_state.current_chat.append({"role": "system", "content": prompt_text})
+        # Call the selected model's API
+        try:
+            if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
+                sambanova_client = SambanovaClient(
+                    api_key=sambanova_api_key,
+                    base_url="https://api.sambanova.ai/v1"
+                )
+                response = sambanova_client.chat(
+                    model="Qwen2.5-72B-Instruct",
+                    messages=st.session_state.current_chat,
+                    temperature=0.1,
+                    top_p=0.1,
+                    max_tokens=300
+                )
+                answer = response['choices'][0]['message']['content'].strip()
+            elif model_choice == "Together (WizardLM v1.2 13B)":
+                together_client = TogetherClient(api_key=together_api_key)
+                response = together_client.chat(
+                    model="wizardlm-1.2-13b",
+                    messages=st.session_state.current_chat
+                )
+                answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
+            
+            # Append the assistant's response
+            st.session_state.current_chat.append({"role": "assistant", "content": answer})
+            st.experimental_rerun()
 
-    try:
-        if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
-            sambanova_client = SambanovaClient(
-                api_key=sambanova_api_key,
-                base_url="https://api.sambanova.ai/v1"
-            )
-            response = sambanova_client.chat(
-                model="Qwen2.5-72B-Instruct",
-                messages=st.session_state.current_chat,
-                temperature=0.1,
-                top_p=0.1,
-                max_tokens=300
-            )
-            answer = response['choices'][0]['message']['content'].strip()
-        elif model_choice == "Together (Wizard LM-2 8x22b)":
-            together_client = TogetherClient(api_key=together_api_key)
-            response = together_client.chat(
-                model="wizardlm2-8x22b",
-                messages=st.session_state.current_chat
-            )
-            answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
-        
-        st.session_state.current_chat.append({"role": "assistant", "content": answer})
-        st.experimental_rerun()
-
-    except Exception as e:
-        st.error(f"Error while fetching response: {e}")
+        except Exception as e:
+            st.error(f"Error while fetching response: {e}")
 
 # Save chat history
 save_chat_history(st.session_state.chat_history)
