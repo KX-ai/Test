@@ -112,12 +112,19 @@ def truncate_chat_history(chat_history, pdf_context, max_length):
     total_length = len(pdf_context)
     truncated_history = []
 
+    # Add PDF context to the chat history
+    if pdf_context:
+        truncated_history.append({"role": "system", "content": pdf_context})
+        total_length += len(pdf_context)
+
+    # Add the previous conversation messages to the history
     for message in reversed(chat_history):
         message_text = message["content"]
         total_length += len(message_text)
         if total_length > max_length:
             break
         truncated_history.insert(0, message)
+    
     return truncated_history
 
 # Streamlit UI setup
@@ -188,8 +195,8 @@ if user_input:
     else:
         truncated_text = ""
 
-    # Truncate chat history to fit token limits
-    truncated_history = truncate_chat_history(st.session_state.current_chat, truncated_text, SAFE_CONTEXT_LENGTH)
+    # Truncate chat history to fit token limits, including the PDF content
+    truncated_history = truncate_chat_history(st.session_state.chat_history, truncated_text, SAFE_CONTEXT_LENGTH)
 
     try:
         if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
@@ -199,7 +206,7 @@ if user_input:
             )
             response = sambanova_client.chat(
                 model="Qwen2.5-72B-Instruct",
-                messages=truncated_history,
+                messages=truncated_history + [{"role": "user", "content": user_input}],
                 temperature=0.1,
                 top_p=0.1,
                 max_tokens=MAX_COMPLETION_TOKENS
@@ -210,7 +217,7 @@ if user_input:
             deepseek_client = DeepSeekClient(api_key=deepseek_api_key)
             response = deepseek_client.chat(
                 model="deepseek-ai/deepseek-llm-67b-chat",
-                messages=truncated_history
+                messages=truncated_history + [{"role": "user", "content": user_input}]
             )
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
 
