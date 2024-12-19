@@ -128,6 +128,12 @@ st.title("Botify")
 # Upload a PDF file
 pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 
+# Display extracted text once the PDF is uploaded
+if pdf_file:
+    text_content = extract_text_from_pdf(pdf_file)
+    st.write("### Extracted PDF Text:")
+    st.text_area("Extracted Text", text_content, height=300)
+
 # Initialize session state for chat
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = load_chat_history()
@@ -163,7 +169,6 @@ if user_input:
 
     # Prepare the prompt based on uploaded PDF content
     if pdf_file:
-        text_content = extract_text_from_pdf(pdf_file)
         truncated_text = truncate_text(text_content, SAFE_CONTEXT_LENGTH // 2)  # Limit PDF context size
     else:
         truncated_text = ""
