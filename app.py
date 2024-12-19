@@ -8,35 +8,14 @@ import json
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
 
-# Maximum context length for Sambanova
+# Maximum context length for Gemma-2-9B-IT
 MAX_CONTEXT_LENGTH = 8192
 
-# Use the Sambanova API for Qwen 2.5-72B-Instruct
-class SambanovaClient:
-    def __init__(self, api_key, base_url):
-        self.api_key = api_key
-        self.base_url = base_url
-        openai.api_key = self.api_key
-        openai.api_base = self.base_url
-
-    def chat(self, model, messages, temperature=0.7, top_p=1.0, max_tokens=500):
-        try:
-            response = openai.ChatCompletion.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                top_p=top_p
-            )
-            return response
-        except Exception as e:
-            raise Exception(f"Error while calling Sambanova API: {str(e)}")
-
-# Use the Together API for Wizard LM-2 (8x22b)
-class TogetherClient:
+# Use the Groq API for Gemma-2-9B-IT
+class GroqClient:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.url = "https://api.together.xyz/v1/chat/completions"
+        self.url = "https://api.groq.com/v1/chat/completions"  # Example Groq endpoint, change as necessary
 
     def chat(self, model, messages):
         payload = {
@@ -55,7 +34,7 @@ class TogetherClient:
                 raise Exception(f"Error: {response_data.get('error', 'Unknown error')}")
             return response_data
         except Exception as e:
-            raise Exception(f"Error while calling Together API: {str(e)}")
+            raise Exception(f"Error while calling Groq API: {str(e)}")
 
 # Function to extract text from PDF using PyPDF2
 @st.cache_data
@@ -113,11 +92,10 @@ for msg in st.session_state.current_chat:
         st.error("Error: A message is missing or malformed in the chat history.")
 
 # API keys
-sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
-together_api_key = "db476cc81d29116da9b75433badfe89666552a25d2cd8efd6cb5a0c916eb8f50"
+groq_api_key = st.secrets["general"]["GROQ_API_KEY"]  # Assuming you are storing the API key in secrets
 
 # Model selection
-model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Wizard LM-2 8x22b)"])
+model_choice = st.selectbox("Select the LLM model:", ["Groq (Gemma-2-9B-IT)"])
 
 # Input message (via Enter key)
 user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
@@ -137,21 +115,9 @@ if user_input:
     st.session_state.current_chat.append({"role": "system", "content": prompt_text})
 
     try:
-        if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
-            response = SambanovaClient(
-                api_key=sambanova_api_key,
-                base_url="https://api.sambanova.ai/v1"
-            ).chat(
-                model="Qwen2.5-72B-Instruct",
-                messages=st.session_state.current_chat,
-                temperature=0.1,
-                top_p=0.1,
-                max_tokens=300  # Reduced max tokens for the response
-            )
-            answer = response['choices'][0]['message']['content'].strip()
-        elif model_choice == "Together (Wizard LM-2 8x22b)":
-            response = TogetherClient(api_key=together_api_key).chat(
-                model="wizardlm2-8x22b",  # Specify the model name explicitly
+        if model_choice == "Groq (Gemma-2-9B-IT)":
+            response = GroqClient(api_key=groq_api_key).chat(
+                model="gemma-2-9b-it",  # Model name for Groq API, change if needed
                 messages=st.session_state.current_chat
             )
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
