@@ -13,12 +13,11 @@ class SambanovaClient:
 
     def chat(self, model, messages, temperature=0.7, top_p=1.0, max_tokens=500):
         try:
-            # Increased max_tokens for longer responses
             response = openai.ChatCompletion.create(
                 model=model,
                 messages=messages,
                 temperature=temperature,
-                max_tokens=max_tokens,  # Allowing for longer responses
+                max_tokens=max_tokens,
                 top_p=top_p
             )
             return response
@@ -55,40 +54,44 @@ if pdf_file is not None:
             base_url="https://api.sambanova.ai/v1"
         )
 
-        # Initialize session_state to store chat history
+        # Initialize session state to store chat history
         if "chat_history" not in st.session_state:
-            st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant"}]
-        
-        # Chat functionality
-        user_input = st.text_input("Ask a question about the document:")
+            st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant."}]
 
+        # Text input for the user's question
+        user_input = st.text_input("Ask a question about the document:", key="user_input")
+
+        # Check if user provided input
         if user_input:
             # Add user input to chat history
             st.session_state.chat_history.append({"role": "user", "content": user_input})
 
-            # Create prompt for Qwen 2.5 Instruct model using the extracted text (limit size)
-            # We limit the text size for better performance with token limits
+            # Create prompt for the model using the extracted text (limit size)
             prompt_text = f"Document content (truncated): {text_content[:1000]}...\n\nUser question: {user_input}\nAnswer:"
-
-            # Add prompt text to the chat history
-            st.session_state.chat_history.append({"role": "system", "content": prompt_text})
 
             try:
                 # Call the Qwen2.5-72B-Instruct model to generate a response
                 response = sambanova_client.chat(
-                    model="Qwen2.5-72B-Instruct",  # Model name
+                    model="Qwen2.5-72B-Instruct",
                     messages=st.session_state.chat_history,
                     temperature=0.1,
                     top_p=0.1,
-                    max_tokens=500  # Allowing longer responses
+                    max_tokens=500
                 )
 
-                # Get and display the response from the model
-                answer = response['choices'][0]['message']['content'].strip()  # Correct access to response
+                # Extract and display the response
+                answer = response['choices'][0]['message']['content'].strip()
+                st.session_state.chat_history.append({"role": "assistant", "content": answer})
                 st.write(f"Qwen 2.5: {answer}")
 
-                # Add model response to chat history
-                st.session_state.chat_history.append({"role": "assistant", "content": answer})
+                # Clear the input box for the next question
+                st.session_state.user_input = ""  # Reset input field
 
             except Exception as e:
                 st.error(f"Error occurred while fetching response: {str(e)}")
+
+        # Display the chat history
+        with st.expander("Chat History"):
+            for msg in st.session_state.chat_history:
+                role = "User" if msg["role"] == "user" else "Assistant"
+                st.write(f"**{role}:** {msg['content']}")
