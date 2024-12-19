@@ -4,7 +4,6 @@ import requests
 import json
 import streamlit as st
 import PyPDF2
-from together import Together  # Correct import for Together API
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -37,17 +36,29 @@ class SambanovaClient:
 class TogetherAIClient:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.client = Together(api_key=st.secrets["general"]["TOGETHER_API_KEY"])
+        self.url = "https://api.together.xyz/v1/chat/completions"  # Together API endpoint
 
     def chat(self, model, messages):
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": model,  # DeepSeek LLM Chat 67B model
+            "messages": messages
+        }
+
         try:
-            # Stream chat completions using Together API
-            completion = self.client.chat.completions.create(  # Use the new format for the API call
-                model=model,
-                messages=messages
-            )
-            return completion['choices'][0]['message']['content'].strip()
-        except Exception as e:
+            # Make the API request using the requests library
+            response = requests.post(self.url, headers=headers, json=payload)
+            response.raise_for_status()  # Raise an exception for 4xx/5xx responses
+
+            # Parse the response and extract the generated content
+            result = response.json()
+            return result['choices'][0]['message']['content'].strip()
+
+        except requests.exceptions.RequestException as e:
             raise Exception(f"Error while calling Together AI API: {str(e)}")
 
 # Function to extract text from PDF using PyPDF2
