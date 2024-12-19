@@ -28,7 +28,7 @@ class SambanovaClient:
             )
             return response
         except Exception as e:
-            raise Exception(f"Error while calling OpenAI API: {str(e)}")
+            raise Exception(f"Error while calling Sambanova API: {str(e)}")
 
 
 # Use the Together API for Wizard LM-2 (8x22b)
@@ -76,12 +76,12 @@ def load_chat_history():
 # Function to save chat history to a JSON file
 def save_chat_history(history):
     with open(CHAT_HISTORY_FILE, "w") as file:
-        json.dump(history, file)
+        json.dump(history, file, indent=4)
 
 
 # Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
-st.title("Chatbot with PDF Content (Botify)")
+st.title("Botify")
 
 # Upload a PDF file
 pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
@@ -146,10 +146,10 @@ if user_input:
                 answer = response['choices'][0]['message']['content'].strip()
             elif model_choice == "Together (Wizard LM-2 8x22b)":
                 response = TogetherClient(api_key=together_api_key).chat(
-                    model="Qwen/Qwen2.5-72B-Instruct-Turbo",
+                    model="wizardlm2-8x22b",
                     messages=st.session_state.current_chat
                 )
-                answer = response['choices'][0]['message']['content'].strip() if 'choices' in response else "No response received."
+                answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
             st.session_state.current_chat.append({"role": "assistant", "content": answer})
         except Exception as e:
             st.error(f"Error while fetching response: {e}")
@@ -157,13 +157,18 @@ if user_input:
 # Save chat history
 save_chat_history(st.session_state.chat_history)
 
-# Display chat history
+# Display chat history with deletion option
 with st.expander("Chat History"):
     for i, conversation in enumerate(st.session_state.chat_history):
-        st.write(f"**Conversation {i + 1}:**")
-        for msg in conversation:
-            if isinstance(msg, dict) and "role" in msg and "content" in msg:
-                role = "User" if msg["role"] == "user" else "Botify"
-                st.write(f"**{role}:** {msg['content']}")
-            else:
-                st.error(f"Error: Malformed message in conversation {i + 1}.")
+        with st.container():
+            st.write(f"**Conversation {i + 1}:**")
+            for msg in conversation:
+                if isinstance(msg, dict) and "role" in msg and "content" in msg:
+                    role = "User" if msg["role"] == "user" else "Botify"
+                    st.write(f"**{role}:** {msg['content']}")
+                else:
+                    st.error(f"Error: Malformed message in conversation {i + 1}.")
+            if st.button(f"Delete Conversation {i + 1}", key=f"delete_{i}"):
+                del st.session_state.chat_history[i]
+                save_chat_history(st.session_state.chat_history)
+                st.experimental_rerun()
