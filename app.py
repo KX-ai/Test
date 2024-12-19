@@ -35,16 +35,17 @@ def extract_text_from_pdf(pdf_file):
     return text
 
 # Streamlit UI
+st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
 st.title("Chatbot with PDF Content (Botify)")
-st.write("Upload a PDF file and ask questions about its content.")
 
-# File upload
+# Upload a PDF
+st.write("Upload a PDF file and interact with the chatbot to ask questions.")
 pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 
 if pdf_file is not None:
     # Extract text from the uploaded PDF
     text_content = extract_text_from_pdf(pdf_file)
-    st.write("PDF content extracted successfully.")
+    st.success("PDF content extracted successfully!")
 
     # Retrieve the API key securely from Streamlit Secrets
     api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
@@ -60,19 +61,29 @@ if pdf_file is not None:
         if "chat_history" not in st.session_state:
             st.session_state.chat_history = [{"role": "system", "content": "You are a helpful assistant named Botify."}]
 
-        # Truncate chat history to the last 2 exchanges for performance
-        max_history = 2
-        st.session_state.chat_history = st.session_state.chat_history[-max_history:]
+        # Display the chat conversation
+        st.write("### Chat Conversation")
+        chat_container = st.container()
 
-        # User input for questions
-        user_input = st.text_input("Ask a question about the document:")
+        # Display chat history dynamically
+        with chat_container:
+            for msg in st.session_state.chat_history:
+                if msg["role"] == "user":
+                    st.markdown(f"**🧑 User:** {msg['content']}")
+                elif msg["role"] == "assistant":
+                    st.markdown(f"**🤖 Botify:** {msg['content']}")
 
-        if user_input:
+        # User input box at the bottom
+        with st.form(key="user_input_form", clear_on_submit=True):
+            user_input = st.text_input("Your message:", key="user_input", placeholder="Type your question here...")
+            submit_button = st.form_submit_button(label="Send")
+
+        if submit_button and user_input:
             # Add user input to chat history
             st.session_state.chat_history.append({"role": "user", "content": user_input})
 
             # Truncate document content to fit within token limits
-            max_content_length = 300  # Optimized for performance
+            max_content_length = 500  # Optimized for performance
             truncated_content = text_content[:max_content_length]
 
             # Create prompt for the model
@@ -94,16 +105,12 @@ if pdf_file is not None:
                 # Extract and display the response
                 answer = response['choices'][0]['message']['content'].strip()
                 st.session_state.chat_history.append({"role": "assistant", "content": answer})
-                st.write(f"Botify: {answer}")
+
+                # Refresh the chat container to display the latest interaction
+                st.experimental_rerun()
 
             except Exception as e:
                 st.error(f"Error occurred while fetching response: {str(e)}")
             finally:
                 end_time = time.time()
-                st.write(f"API call duration: {end_time - start_time:.2f} seconds")
-
-        # Display the chat history
-        with st.expander("Chat History"):
-            for msg in st.session_state.chat_history:
-                role = "User" if msg["role"] == "user" else "Botify"
-                st.write(f"**{role}:** {msg['content']}")
+                st.info(f"API call duration: {end_time - start_time:.2f} seconds")
