@@ -4,7 +4,7 @@ import requests
 import json
 import streamlit as st
 import PyPDF2
-from groq import Groq
+from together import Together  # Import the Together library
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -33,21 +33,25 @@ class SambanovaClient:
         except Exception as e:
             raise Exception(f"Error while calling Sambanova API: {str(e)}")
 
-# Groq API Client (Gemma Model)
-class GroqClient:
-    def __init__(self, api_key):
-        self.client = Groq(api_key=api_key)  # Simplified initialization
+# Together AI Client (Typhoon 1.5x 70B AWQ Model)
+class TogetherClient:
+    def __init__(self):
+        self.client = Together()  # Initialize Together client
 
     def chat(self, model, messages):
         try:
-            # Ensure we do not pass 'proxies' or any unsupported argument here
-            chat_completion = self.client.chat.completions.create(
+            # Stream chat completions using Together API
+            stream = self.client.chat.completions.create(
+                model=model,
                 messages=messages,
-                model=model
+                stream=True,
             )
-            return chat_completion.choices[0].message.content.strip()
+            response = ""
+            for chunk in stream:
+                response += chunk.choices[0].delta.content or ""
+            return response.strip()
         except Exception as e:
-            raise Exception(f"Error while calling Groq API: {str(e)}")
+            raise Exception(f"Error while calling Together AI API: {str(e)}")
 
 # Function to extract text from PDF using PyPDF2
 @st.cache_data
@@ -102,12 +106,8 @@ for msg in st.session_state.current_chat:
         elif msg["role"] == "assistant":
             st.markdown(f"**\U0001F916 Botify:** {msg['content']}")
 
-# API keys
-sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
-groq_api_key = st.secrets["general"]["GROQ_API_KEY"]
-
 # Model selection
-model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Groq (Gemma-2-9B-IT)"])
+model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together AI (Typhoon1.5x 70B AWQ)"])
 
 # Input message
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
@@ -128,7 +128,7 @@ if user_input:
     try:
         if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
             response = SambanovaClient(
-                api_key=sambanova_api_key,
+                api_key=st.secrets["general"]["SAMBANOVA_API_KEY"],
                 base_url="https://api.sambanova.ai/v1"
             ).chat(
                 model="Qwen2.5-72B-Instruct",
@@ -138,12 +138,12 @@ if user_input:
                 max_tokens=1000  # Increased max_tokens for longer responses
             )
             answer = response['choices'][0]['message']['content'].strip()
-        elif model_choice == "Groq (Gemma-2-9B-IT)":
-            response = GroqClient(api_key=groq_api_key).chat(
-                model="gemma-2-9b-it",  # Specify the correct model name if different
+        elif model_choice == "Together AI (Typhoon1.5x 70B AWQ)":
+            response = TogetherClient().chat(
+                model="typhoon1.5x-70b-awq",  # Specify the correct Together model name
                 messages=st.session_state.current_chat
             )
-            answer = response  # Directly getting the answer from GroqClient
+            answer = response
         
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
         save_chat_history(st.session_state.chat_history)
