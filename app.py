@@ -8,6 +8,9 @@ import json
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
 
+# Maximum context length for Sambanova
+MAX_CONTEXT_LENGTH = 8192
+
 # Use the Sambanova API for Qwen 2.5-72B-Instruct
 class SambanovaClient:
     def __init__(self, api_key, base_url):
@@ -73,6 +76,10 @@ def save_chat_history(history):
     with open(CHAT_HISTORY_FILE, "w") as file:
         json.dump(history, file, indent=4)
 
+# Function to truncate text if it's too long
+def truncate_text(text, max_length=MAX_CONTEXT_LENGTH):
+    return text[:max_length]
+
 # Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
 st.title("Botify")
@@ -109,16 +116,16 @@ together_api_key = "db476cc81d29116da9b75433badfe89666552a25d2cd8efd6cb5a0c916eb
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Wizard LM-2 8x22b)"])
 
-# Wait for user input
-user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
-submit_button = st.button("Submit")
+# Input message (via Enter key)
+user_input = st.text_area("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
-if submit_button and user_input:
+if user_input:
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
     if pdf_file:
         text_content = extract_text_from_pdf(pdf_file)
-        prompt_text = f"Document content:\n{text_content}\n\nUser question: {user_input}\nAnswer:"
+        truncated_text = truncate_text(text_content)
+        prompt_text = f"Document content:\n{truncated_text}\n\nUser question: {user_input}\nAnswer:"
     else:
         prompt_text = f"User question: {user_input}\nAnswer:"
 
