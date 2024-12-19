@@ -73,26 +73,23 @@ if pdf_file is not None:
                 elif msg["role"] == "assistant":
                     st.markdown(f"**🤖 Botify:** {msg['content']}")
 
-        # User input box at the bottom
-        with st.form(key="user_input_form", clear_on_submit=True):
-            user_input = st.text_area(
-                "Your message:", 
-                key="user_input", 
-                placeholder="Type your question and press Enter...", 
-                height=50
-            )
-            submit_button = st.form_submit_button(label="Send")
+        # User input at the bottom
+        user_input = st.text_input(
+            "Your message:", 
+            key="user_input", 
+            placeholder="Type your message and press Enter to send..."
+        )
 
-        if submit_button and user_input.strip():
+        if user_input:
             # Add user input to chat history
-            st.session_state.chat_history.append({"role": "user", "content": user_input.strip()})
+            st.session_state.chat_history.append({"role": "user", "content": user_input})
 
             # Truncate document content to fit within token limits
             max_content_length = 500  # Optimized for performance
             truncated_content = text_content[:max_content_length]
 
             # Create prompt for the model
-            prompt_text = f"Document content (truncated): {truncated_content}...\n\nUser question: {user_input.strip()}\nAnswer:"
+            prompt_text = f"Document content (truncated): {truncated_content}...\n\nUser question: {user_input}\nAnswer:"
             st.session_state.chat_history.append({"role": "system", "content": prompt_text})
 
             # Measure API call time
