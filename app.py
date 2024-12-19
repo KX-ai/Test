@@ -144,17 +144,25 @@ if user_input:
                 messages=st.session_state.current_chat,
                 temperature=0.1,
                 top_p=0.1,
-                max_tokens=300
+                max_tokens=300  # Reduced max tokens for the response
             )
             answer = response['choices'][0]['message']['content'].strip()
         elif model_choice == "Together (Wizard LM-2 8x22b)":
+            # Check if the model is available
+            model_url = f"https://api.together.xyz/v1/models/{model_choice.replace(' ', '').lower()}"
+            model_response = requests.get(model_url, headers={"Authorization": f"Bearer {together_api_key}"})
+            if model_response.status_code != 200:
+                raise Exception("Model not available or invalid.")
+
             response = TogetherClient(api_key=together_api_key).chat(
                 model="wizardlm2-8x22b",
                 messages=st.session_state.current_chat
             )
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
+        
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
         st.experimental_rerun()  # Rerun to update chat dynamically
+
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
 
