@@ -36,7 +36,9 @@ class SambanovaClient:
 # Together AI Client (Typhoon 1.5x 70B AWQ Model)
 class TogetherClient:
     def __init__(self):
-        self.client = Together()  # Initialize Together client
+        # Fetch the Together API key securely from Streamlit secrets
+        self.api_key = st.secrets["general"]["TOGETHER_API_KEY"]
+        self.client = Together(api_key=self.api_key)  # Initialize Together client with the API key
 
     def chat(self, model, messages):
         try:
