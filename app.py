@@ -348,96 +348,97 @@ if content and input_method == "Upload PDF":
 
 
 # Step 5: Allow real-time conversation with the chatbot
-if content and selected_model_id:
-    # Display the conversation history
-    if "history" not in st.session_state:
-        st.session_state.history = []
+if "history" not in st.session_state:
+    st.session_state.history = []
 
-    for interaction in st.session_state.history:
-        st.chat_message("user").write(interaction["question"])
-        st.chat_message("assistant").write(interaction["response"] or "Thinking...")
+# Display the conversation history
+for interaction in st.session_state.history:
+    st.chat_message("user").write(interaction["question"])
+    st.chat_message("assistant").write(interaction["response"] or "Thinking...")
 
-    # Get user input using the chat-style input field
-    user_input = st.chat_input("Ask a question about the content:")
+# Get user input using the chat-style input field
+user_input = st.chat_input("Ask a question:")
 
-    if user_input:
-        # Set the timezone to Malaysia for the timestamp
-        malaysia_tz = pytz.timezone("Asia/Kuala_Lumpur")
-        current_time = datetime.now(malaysia_tz).strftime("%Y-%m-%d %H:%M:%S")
+if user_input:
+    # Set the timezone to Malaysia for the timestamp
+    malaysia_tz = pytz.timezone("Asia/Kuala_Lumpur")
+    current_time = datetime.now(malaysia_tz).strftime("%Y-%m-%d %H:%M:%S")
 
-        # Prepare the interaction data for history tracking
-        interaction = {
-            "time": current_time,
-            "input_method": "chat_input",
-            "question": user_input,
-            "response": "",
-            "content_preview": content[:100] if content else "No content available"
-        }
+    # Prepare the interaction data for history tracking
+    interaction = {
+        "time": current_time,
+        "input_method": "chat_input",
+        "question": user_input,
+        "response": "",
+        "content_preview": content[:100] if content else "No content available"
+    }
 
-        # Add the user question to the history
-        st.session_state.history.append(interaction)
+    # Add the user question to the history
+    st.session_state.history.append(interaction)
 
-        # Display the user's input immediately
-        st.chat_message("user").write(user_input)
+    # Display the user's input immediately
+    st.chat_message("user").write(user_input)
 
-        # Display "Thinking..." for assistant response
-        st.chat_message("assistant").write("Thinking...")
+    # Display "Thinking..." for assistant response
+    st.chat_message("assistant").write("Thinking...")
 
-        # Track start time for response calculation
-        start_time = time.time()
+    # Track start time for response calculation
+    start_time = time.time()
 
-        # Send the question along with the content to the selected model API for the response
-        url = f"{base_url}/chat/completions"
-        data = {
-            "model": selected_model_id,
-            "messages": [
-                {"role": "system", "content": "You are a helpful assistant. Use the following content to answer the user's questions."},
-                {"role": "system", "content": content},
-                {"role": "user", "content": user_input}
-            ],
-            "temperature": 0.7,
-            "max_tokens": 200,
-            "top_p": 0.9
-        }
+    # Prepare the data for API call
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": user_input}
+    ]
+    if content:
+        messages.insert(1, {"role": "system", "content": f"Use the following content: {content}"})
 
-        try:
-            # Send the request to the API
-            response = requests.post(url, headers=headers, json=data)
+    data = {
+        "model": selected_model_id,
+        "messages": messages,
+        "temperature": 0.7,
+        "max_tokens": 200,
+        "top_p": 0.9
+    }
 
-            # Track end time for response calculation
-            end_time = time.time()
-            response_time = end_time - start_time
+    try:
+        # Send the request to the API
+        response = requests.post(f"{base_url}/chat/completions", headers=headers, json=data)
 
-            if response.status_code == 200:
-                result = response.json()
-                answer = result['choices'][0]['message']['content']
+        # Track end time for response calculation
+        end_time = time.time()
+        response_time = end_time - start_time
 
-                # Update the latest interaction with the model's response
-                st.session_state.history[-1]["response"] = answer
+        if response.status_code == 200:
+            result = response.json()
+            answer = result['choices'][0]['message']['content']
 
-                # Display the assistant's response
-                st.chat_message("assistant").write(answer)
+            # Update the latest interaction with the model's response
+            st.session_state.history[-1]["response"] = answer
 
-                # Display the response time
-                st.write(f"Response Time: {response_time:.2f} seconds")
+            # Display the assistant's response
+            st.chat_message("assistant").write(answer)
 
-                # Calculate ROUGE scores between the answer and the content (or summary)
-                if 'generated_summary' in st.session_state:
-                    reference_summary = st.session_state['generated_summary']  # The content summary
+            # Display the response time
+            st.write(f"Response Time: {response_time:.2f} seconds")
 
-                    # Calculate ROUGE scores
-                    scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
-                    scores = scorer.score(reference_summary, answer)
-                    rouge1 = scores["rouge1"]
-                    rouge2 = scores["rouge2"]
-                    rougeL = scores["rougeL"]
+            # Optionally calculate ROUGE scores (if applicable)
+            if 'generated_summary' in st.session_state:
+                reference_summary = st.session_state['generated_summary']
 
-                    # Display ROUGE scores
-                    st.write(f"ROUGE-1: {rouge1.fmeasure:.4f}, ROUGE-2: {rouge2.fmeasure:.4f}, ROUGE-L: {rougeL.fmeasure:.4f}")
-            else:
-                st.chat_message("assistant").write(f"Error {response.status_code}: {response.text}")
-        except requests.exceptions.RequestException as e:
-            st.chat_message("assistant").write(f"An error occurred: {e}")
+                # Calculate ROUGE scores
+                scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
+                scores = scorer.score(reference_summary, answer)
+                rouge1 = scores["rouge1"]
+                rouge2 = scores["rouge2"]
+                rougeL = scores["rougeL"]
+
+                # Display ROUGE scores
+                st.write(f"ROUGE-1: {rouge1.fmeasure:.4f}, ROUGE-2: {rouge2.fmeasure:.4f}, ROUGE-L: {rougeL.fmeasure:.4f}")
+        else:
+            st.chat_message("assistant").write(f"Error {response.status_code}: {response.text}")
+    except requests.exceptions.RequestException as e:
+        st.chat_message("assistant").write(f"An error occurred: {e}")
 
 
 # Initialize session state variables if not already set
