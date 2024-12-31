@@ -353,8 +353,10 @@ if "history" not in st.session_state:
 
 # Display the conversation history
 for interaction in st.session_state.history:
-    st.chat_message("user").write(interaction["question"])
+    # Display the interaction time
+    st.chat_message("user").write(f"[{interaction['time']}] {interaction['question']}")
     st.chat_message("assistant").write(interaction["response"] or "Thinking...")
+
 
 # Get user input using the chat-style input field
 user_input = st.chat_input("Ask a question:")
@@ -469,8 +471,10 @@ if st.session_state.history:
     with st.sidebar.expander("Full Conversation"):
         for idx, interaction in enumerate(st.session_state.history):
             st.markdown(f"**Interaction {idx+1}:**")
+            st.markdown(f"- **Time:** {interaction['time']}")
             st.markdown(f"- **Question:** {interaction['question']}")
             st.markdown(f"- **Response:** {interaction['response']}")
+
 
 # Display the past conversations and allow users to navigate between them
 if st.session_state.past_conversations:
