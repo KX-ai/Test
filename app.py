@@ -353,9 +353,12 @@ if "history" not in st.session_state:
 
 # Display the conversation history
 for interaction in st.session_state.history:
-    # Display the interaction time
+    # Display the timestamp and question from the user
     st.chat_message("user").write(f"[{interaction['time']}] {interaction['question']}")
+    
+    # Display the assistant's response with a "Thinking..." placeholder if no response yet
     st.chat_message("assistant").write(interaction["response"] or "Thinking...")
+
 
 
 # Get user input using the chat-style input field
@@ -482,10 +485,12 @@ if st.session_state.past_conversations:
     for conv_idx, conversation in enumerate(st.session_state.past_conversations):
         with st.sidebar.expander(f"Conversation {conv_idx+1}"):
             for idx, interaction in enumerate(conversation):
+                # Display the interaction time along with the question and response
                 st.markdown(f"**Interaction {idx+1}:**")
+                st.markdown(f"- **Time:** {interaction['time']}")
                 st.markdown(f"- **Question:** {interaction['question']}")
                 st.markdown(f"- **Response:** {interaction['response']}")
-            
+
             # Add a button to switch to this past conversation
             if st.sidebar.button(f"Switch to Conversation {conv_idx+1}", key=f"switch_{conv_idx}"):
                 # Save the current history to past conversations
@@ -497,6 +502,7 @@ if st.session_state.past_conversations:
                 st.session_state.current_conversation_index = conv_idx
                 st.sidebar.success(f"Switched to Conversation {conv_idx+1}")
                 st.rerun()  # Refresh the app to reflect the changes
+
 else:
     st.sidebar.write("No past conversations yet.")
 
