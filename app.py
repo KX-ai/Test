@@ -16,7 +16,7 @@ from rouge_score import rouge_scorer
 
 
 # Hugging Face BLIP-2 Setup
-hf_token = "hf_rLRfVDnchDCuuaBFeIKTAbrptaNcsHUNM"
+hf_token = "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"
 blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large", token=hf_token)
 blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large", token=hf_token)
 
