@@ -75,7 +75,7 @@ headers = {
 
 # Available models, including the two new Sambanova models
 available_models = {
-    "Mixtral 8x7b": "mixtral-8x7b-32768",
+    "Mixtral 8x7b": "openai/gpt-oss-120b",
     "Llama-3.1-8b-instant": "llama-3.1-8b-instant",
     "gemma2-9b-it": "gemma2-9b-it",
 }
