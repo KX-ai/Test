@@ -75,9 +75,9 @@ headers = {
 
 # Available models, including the two new Sambanova models
 available_models = {
-    "Mixtral 8x7b": "openai/gpt-oss-120b",
+    "openai/gpt-oss-120b": "openai/gpt-oss-120b",
     "Llama-3.1-8b-instant": "llama-3.1-8b-instant",
-    "gemma2-9b-it": "llama-3.3-70b-versatile",
+    "llama-3.3-70b-versatile": "llama-3.3-70b-versatile",
 }
 
 # Step 1: Function to Extract Text from PDF
