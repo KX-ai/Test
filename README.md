@@ -21,9 +21,9 @@ A multimodal AI chatbot built with Streamlit that lets you interact with PDFs, i
 
 | Name | Model ID |
 |---|---|
-| Mixtral 8x7b | `mixtral-8x7b-32768` |
+| openai/gpt-oss-120b | `openai/gpt-oss-120b` |
 | Llama 3.1 8b Instant | `llama-3.1-8b-instant` |
-| Gemma2 9b | `gemma2-9b-it` |
+| llama-3.3-70b-versatile | `llama-3.3-70b-versatile` |
 
 ---
 
@@ -49,8 +49,8 @@ A multimodal AI chatbot built with Streamlit that lets you interact with PDFs, i
 ### Installation
 
 ```bash
-git clone https://github.com/KX-ai/Test.git
-cd Test
+git clone https://github.com/KX-ai/Botify.git
+cd Botify
 pip install -r requirements.txt
 ```
 
@@ -101,7 +101,7 @@ streamlit run app.py
 ## Project Structure
 
 ```
-Test/
+Botify/
 ├── app.py              # Main Streamlit application
 └── requirements.txt    # Python dependencies
 ```
@@ -114,19 +114,13 @@ Test/
 requests==2.32.3
 streamlit==1.41.1
 PyPDF2
-pytesseract
 Pillow
-pytz
-python-dotenv
-openai
-pydub
-transformers
 gTTS
-numpy
-google-generativeai
+transformers
 torch
-datasets==2.4.0
+pytz
 rouge-score
+openai
 ```
 
 ---
